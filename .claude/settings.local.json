@@ -31,14 +31,15 @@
       "Skill(data-specialist)",
       "mcp__filesystem__read_text_file",
       "Bash(python3:*)",
-      "Skill(ui-ux-pro-max)"
+      "Skill(ui-ux-pro-max)",
+      "mcp__sequential-thinking__sequentialthinking"
     ],
     "deny": [],
     "ask": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "Context7",
-    "acemcp",
     "Exa AI (搜索)",
     "mcp-feedback-enhanced",
     "Sequential Thinking",

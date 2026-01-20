@@ -2,25 +2,543 @@
 
 > **格式要求**: 严格遵循 `.claude/output-styles/markdown-focused.md` 格式规范
 
-## 代码模式
+## 📚 项目概览
 
-### 认证模式
-- 待补充
+### 项目名称
+CF-Nav - Cloudflare 导航网站
 
-## 常见问题
+### 技术栈
+- **前端**: React 18 + TypeScript + Vite + Tailwind CSS + Shadcn UI
+- **后端**: Cloudflare Workers + Hono + D1 Database + KV
+- **ORM**: Drizzle ORM
+- **状态管理**: TanStack Query + Zustand
+- **部署**: Cloudflare Pages + GitHub Actions
 
-### Q: 待补充
-A: 待补充
-
-## 技术决策记录
-
-### 决策1
-- **背景**: 待补充
-- **决策**: 待补充
-- **原因**: 待补充
-
-## 学习资源
-- 待补充
+### 架构特点
+- **Serverless JAMstack**: 完全基于 Cloudflare 免费套餐
+- **全球边缘计算**: CDN 加速，延迟 < 50ms
+- **零成本运行**: 免费套餐足够支撑中小型网站
 
 ---
-*本文档由 Claude Code 自动维护，请勿手动编辑格式*
+
+## 🎯 核心架构决策
+
+### ADR-001: 前端框架选择 React
+- **背景**: 需要选择一个前端框架构建 SPA
+- **决策**: React 18 + TypeScript + Vite
+- **原因**:
+  - 生态系统成熟，组件库丰富（Shadcn UI、DaisyUI）
+  - TypeScript 支持完善，类型安全
+  - Vite 构建速度快，满足 Cloudflare Pages 20 分钟限制
+  - 团队熟悉度高，符合 KISS 原则
+
+### ADR-002: 状态管理双层架构
+- **背景**: 需要管理服务端状态和客户端状态
+- **决策**: TanStack Query（服务端） + Zustand（客户端）
+- **原因**:
+  - 职责分离（单一职责原则）
+  - TanStack Query 自动缓存、重试、同步
+  - Zustand 轻量级（< 1KB），API 简洁
+  - 避免 Redux 的复杂性
+
+### ADR-003: Workers 框架选择 Hono
+- **背景**: 需要轻量级 Web 框架适配 Workers
+- **决策**: Hono
+- **原因**:
+  - 专为 Cloudflare Workers 优化
+  - 轻量级（< 20KB），满足脚本大小限制
+  - 中间件系统灵活（认证、限流、CORS）
+  - TypeScript 支持好
+
+### ADR-004: 缓存策略三层架构
+- **背景**: Workers CPU 时间 < 50ms，需要优化性能
+- **决策**: CDN + Workers KV + TanStack Query
+- **原因**:
+  - CDN 缓存静态资源（TTL 1 年）
+  - Workers KV 缓存 API 响应（TTL 5-10 分钟）
+  - TanStack Query 客户端缓存（staleTime 5 分钟）
+  - 三层缓存减少 D1 查询，提升响应速度
+
+### ADR-005: ORM 选择 Drizzle
+- **背景**: 需要 ORM 简化 D1 数据库操作
+- **决策**: Drizzle ORM
+- **原因**:
+  - 轻量级（< 100KB），适合 Workers
+  - TypeScript 优先，类型推导强大
+  - 官方支持 Cloudflare D1
+  - 性能接近原生 SQL
+
+---
+
+## 🏗️ 代码模式
+
+### 认证模式
+
+#### JWT Token 生成
+```typescript
+import jwt from '@tsndr/cloudflare-worker-jwt'
+
+const token = await jwt.sign({
+  user_id: 1,
+  email: 'admin@example.com',
+  exp: Math.floor(Date.now() / 1000) + 86400, // 24 小时
+}, env.JWT_SECRET)
+```
+
+#### JWT Token 验证（中间件）
+```typescript
+import { Hono } from 'hono'
+import jwt from '@tsndr/cloudflare-worker-jwt'
+
+const authMiddleware = async (c, next) => {
+  const authHeader = c.req.header('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  const token = authHeader.substring(7)
+  const isValid = await jwt.verify(token, c.env.JWT_SECRET)
+  if (!isValid) {
+    return c.json({ error: 'Invalid token' }, 401)
+  }
+
+  const payload = jwt.decode(token)
+  c.set('user', payload.payload)
+  await next()
+}
+```
+
+### 限流模式
+
+#### Workers KV 限流
+```typescript
+async function checkRateLimit(
+  kv: KVNamespace,
+  ip: string,
+  key: string,
+  limit: number,
+  ttl: number
+): Promise<boolean> {
+  const cacheKey = `ratelimit:${key}:${ip}`
+  const count = await kv.get(cacheKey)
+
+  if (count && parseInt(count) >= limit) {
+    return false // 超过限制
+  }
+
+  await kv.put(cacheKey, (parseInt(count || '0') + 1).toString(), {
+    expirationTtl: ttl,
+  })
+  return true
+}
+
+// 使用示例
+const isAllowed = await checkRateLimit(c.env.KV, c.req.header('CF-Connecting-IP'), 'login', 5, 60)
+if (!isAllowed) {
+  return c.json({ error: 'Rate limit exceeded' }, 429)
+}
+```
+
+### 缓存模式
+
+#### Workers KV 缓存查询结果
+```typescript
+async function getCachedLinks(env: Env) {
+  const cacheKey = 'cache:links:all'
+
+  // 尝试从缓存获取
+  const cached = await env.KV.get(cacheKey)
+  if (cached) {
+    return JSON.parse(cached)
+  }
+
+  // 缓存未命中，查询数据库
+  const db = drizzle(env.DB)
+  const links = await db.select().from(linksTable).all()
+
+  // 写入缓存（TTL 5 分钟）
+  await env.KV.put(cacheKey, JSON.stringify(links), {
+    expirationTtl: 300,
+  })
+
+  return links
+}
+
+// 清除缓存（创建/更新/删除时调用）
+async function invalidateCache(env: Env) {
+  await env.KV.delete('cache:links:all')
+  await env.KV.delete('cache:categories:all')
+}
+```
+
+### 网站信息抓取模式
+
+#### 抓取网站 Title、Favicon、Logo
+```typescript
+import { parseHTML } from 'linkedom'
+
+async function scrapeWebsiteInfo(url: string): Promise<{
+  title: string | null
+  favicon: string | null
+  logo: string | null
+}> {
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; CF-Nav/1.0)',
+    },
+    signal: AbortSignal.timeout(10000), // 10 秒超时
+  })
+
+  const html = await response.text()
+  const { document } = parseHTML(html)
+
+  // 提取 title
+  const title = document.querySelector('title')?.textContent || null
+
+  // 提取 favicon
+  const faviconLink = document.querySelector('link[rel="icon"]') ||
+                      document.querySelector('link[rel="shortcut icon"]')
+  const favicon = faviconLink?.href || `${new URL(url).origin}/favicon.ico`
+
+  // 提取 logo（Open Graph）
+  const ogImage = document.querySelector('meta[property="og:image"]')
+  const logo = ogImage?.getAttribute('content') || null
+
+  return { title, favicon, logo }
+}
+```
+
+### Drizzle ORM 查询模式
+
+#### 基础 CRUD
+```typescript
+import { drizzle } from 'drizzle-orm/d1'
+import { eq, and } from 'drizzle-orm'
+import { links, categories } from './schema'
+
+const db = drizzle(c.env.DB)
+
+// 查询所有链接
+const allLinks = await db.select().from(links)
+
+// 按分类查询
+const linksByCategory = await db.select()
+  .from(links)
+  .where(eq(links.categoryId, 1))
+  .orderBy(links.orderNum)
+
+// 插入链接
+const newLink = await db.insert(links).values({
+  url: 'https://github.com',
+  title: 'GitHub',
+  categoryId: 1,
+})
+
+// 更新链接
+await db.update(links)
+  .set({ title: 'GitHub - 新标题' })
+  .where(eq(links.id, 1))
+
+// 删除链接
+await db.delete(links).where(eq(links.id, 1))
+```
+
+### React Hook 模式
+
+#### useLinks (TanStack Query)
+```typescript
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+
+export function useLinks(categoryId?: number) {
+  return useQuery({
+    queryKey: ['links', categoryId],
+    queryFn: () => api.get('/api/v1/links', { searchParams: { category_id: categoryId } }).json(),
+    staleTime: 5 * 60 * 1000, // 5 分钟
+  })
+}
+
+export function useCreateLink() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: CreateLinkInput) => api.post('/api/v1/admin/links', { json: data }).json(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['links'] })
+    },
+  })
+}
+```
+
+#### useTheme (Zustand)
+```typescript
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+
+interface ThemeStore {
+  theme: 'light' | 'dark'
+  setTheme: (theme: 'light' | 'dark') => void
+}
+
+export const useThemeStore = create<ThemeStore>()(
+  persist(
+    (set) => ({
+      theme: 'light',
+      setTheme: (theme) => set({ theme }),
+    }),
+    {
+      name: 'theme-storage',
+    }
+  )
+)
+```
+
+---
+
+## ❓ 常见问题
+
+### Q: Workers CPU 时间超出 50ms 怎么办？
+**A**: 使用 Workers KV 缓存热点数据，减少 D1 查询次数。示例：
+- 缓存首页链接列表（TTL 5 分钟）
+- 缓存分类列表（TTL 10 分钟）
+- 缓存网站信息抓取结果（TTL 24 小时）
+
+### Q: D1 查询速度慢怎么优化？
+**A**: 优化策略：
+1. 添加索引（`CREATE INDEX ON links(category_id, order_num)`）
+2. 避免复杂联表查询（应用层聚合）
+3. 使用 `LIMIT` 分页（每页 20-50 条）
+4. 缓存查询结果到 Workers KV
+
+### Q: 如何防止 URL 重复添加？
+**A**: 数据库设计使用唯一索引：
+```sql
+CREATE UNIQUE INDEX idx_links_url ON links(url);
+```
+应用层也需要检查：
+```typescript
+const existing = await db.select().from(links).where(eq(links.url, url)).get()
+if (existing) {
+  return c.json({ error: 'URL already exists' }, 409)
+}
+```
+
+### Q: 如何实现链接排序拖拽？
+**A**: 使用 `dnd-kit` 库：
+```typescript
+import { DndContext, closestCenter } from '@dnd-kit/core'
+import { SortableContext, arrayMove } from '@dnd-kit/sortable'
+
+function LinkList({ links }) {
+  const [items, setItems] = useState(links)
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event
+    if (active.id !== over.id) {
+      setItems((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id)
+        const newIndex = items.findIndex((i) => i.id === over.id)
+        const newItems = arrayMove(items, oldIndex, newIndex)
+
+        // 更新排序到服务器
+        updateOrder(newItems.map((item, index) => ({ id: item.id, order_num: index })))
+
+        return newItems
+      })
+    }
+  }
+
+  return (
+    <DndContext onDragEnd={handleDragEnd}>
+      <SortableContext items={items}>
+        {items.map((item) => (
+          <SortableItem key={item.id} id={item.id} {...item} />
+        ))}
+      </SortableContext>
+    </DndContext>
+  )
+}
+```
+
+### Q: 如何实现"记住我"功能？
+**A**: 登录时根据 `remember_me` 参数调整 Token 过期时间：
+```typescript
+const expiresIn = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60 // 30 天 or 24 小时
+
+const token = await jwt.sign({
+  user_id: user.id,
+  exp: Math.floor(Date.now() / 1000) + expiresIn,
+}, env.JWT_SECRET)
+```
+
+### Q: 如何处理抓取超时？
+**A**: 使用 `AbortSignal.timeout()` 设置超时：
+```typescript
+try {
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(10000), // 10 秒超时
+  })
+} catch (error) {
+  if (error.name === 'TimeoutError') {
+    return { title: null, favicon: null, logo: null }
+  }
+  throw error
+}
+```
+
+### Q: 如何实现深色模式？
+**A**: 使用 Tailwind CSS 的 `dark:` 前缀 + Zustand 状态管理：
+```typescript
+// 1. Zustand Store
+const useThemeStore = create((set) => ({
+  theme: 'light',
+  toggleTheme: () => set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
+}))
+
+// 2. 根组件应用主题
+function App() {
+  const { theme } = useThemeStore()
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
+
+  return <div>...</div>
+}
+
+// 3. 组件中使用
+<div className="bg-white dark:bg-gray-900 text-black dark:text-white">
+  内容
+</div>
+```
+
+---
+
+## 🔧 调试技巧
+
+### Workers 本地调试
+```bash
+# 启动本地 Workers
+wrangler dev
+
+# 查看实时日志
+wrangler tail --format pretty
+
+# 调试 D1 数据库
+wrangler d1 execute cf-nav-db --local --command "SELECT * FROM links"
+```
+
+### TanStack Query DevTools
+```typescript
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+
+function App() {
+  return (
+    <>
+      <YourApp />
+      <ReactQueryDevtools initialIsOpen={false} />
+    </>
+  )
+}
+```
+
+### TypeScript 类型检查
+```bash
+# 检查类型错误（不生成文件）
+tsc --noEmit
+
+# 监听模式
+tsc --noEmit --watch
+```
+
+---
+
+## 📚 学习资源
+
+### 官方文档
+- [Cloudflare Workers 文档](https://developers.cloudflare.com/workers/)
+- [Cloudflare D1 文档](https://developers.cloudflare.com/d1/)
+- [Hono 文档](https://hono.dev/)
+- [Drizzle ORM 文档](https://orm.drizzle.team/)
+- [TanStack Query 文档](https://tanstack.com/query/latest)
+- [Zustand 文档](https://zustand-demo.pmnd.rs/)
+
+### 教程与文章
+- [Cloudflare Workers 最佳实践](https://developers.cloudflare.com/workers/best-practices/)
+- [D1 性能优化指南](https://developers.cloudflare.com/d1/platform/limits/)
+- [React 18 新特性](https://react.dev/blog/2022/03/29/react-v18)
+- [TypeScript 最佳实践](https://www.typescriptlang.org/docs/handbook/declaration-files/do-s-and-don-ts.html)
+
+### 示例项目
+- [Cloudflare Workers 示例](https://github.com/cloudflare/workers-sdk/tree/main/templates)
+- [Hono 示例应用](https://github.com/honojs/examples)
+- [Drizzle ORM 示例](https://github.com/drizzle-team/drizzle-orm/tree/main/examples)
+
+---
+
+## 🚀 性能优化检查清单
+
+### 前端优化
+- [ ] 使用代码分割（`React.lazy`）
+- [ ] 启用图片懒加载（`loading="lazy"`）
+- [ ] 使用 WebP 格式图片
+- [ ] 启用 Brotli 压缩（Cloudflare CDN 自动）
+- [ ] 移除未使用的 CSS（Tailwind purge）
+- [ ] 使用 `React.memo` 优化组件渲染
+
+### 后端优化
+- [ ] Workers KV 缓存热点数据
+- [ ] 为常用查询字段添加索引
+- [ ] 避免 N+1 查询问题
+- [ ] 使用批量操作（批量插入、批量删除）
+- [ ] 限制单次查询返回数量（分页）
+- [ ] 使用 `prepare()` 预编译查询
+
+### 数据库优化
+- [ ] 添加必要的索引
+- [ ] 定期执行 `ANALYZE`
+- [ ] 避免复杂联表查询
+- [ ] 使用事务保证原子性
+- [ ] 定期备份数据
+
+---
+
+## 🔒 安全检查清单
+
+- [ ] 所有 API 使用 HTTPS
+- [ ] JWT Token 存储在 HttpOnly Cookie
+- [ ] 密码使用 bcrypt 加密（cost factor ≥ 10）
+- [ ] 所有数据库查询使用参数化查询
+- [ ] 用户输入经过验证（Zod Schema）
+- [ ] 登录接口限流（5 次/分钟）
+- [ ] API 接口限流（100 次/分钟）
+- [ ] CORS 配置仅允许特定域名
+- [ ] Content-Security-Policy 头配置
+- [ ] 防止 XSS（React 自动转义）
+- [ ] 防止 CSRF（CSRF Token 验证）
+
+---
+
+## 📝 部署检查清单
+
+### 部署前
+- [ ] 运行 `pnpm run lint` 通过
+- [ ] 运行 `pnpm run type-check` 通过
+- [ ] 运行 `pnpm run test` 通过
+- [ ] 前端构建成功（`pnpm run build`）
+- [ ] 环境变量已配置（`JWT_SECRET`）
+- [ ] D1 数据库已创建
+- [ ] Workers KV 命名空间已创建
+
+### 部署后
+- [ ] 健康检查接口正常（`/api/health`）
+- [ ] 前端页面加载正常
+- [ ] API 接口响应正常
+- [ ] 用户注册/登录功能正常
+- [ ] 链接 CRUD 功能正常
+- [ ] 网站信息抓取功能正常
+- [ ] 监控和日志正常
+
+---
+
+*本文档由 Claude Code (系统架构专家) 维护，最后更新: 2026-01-20*

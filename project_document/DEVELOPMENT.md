@@ -12,6 +12,24 @@
   - 描述: 完整的 GitHub 仓库管理基础设施
 
 ## 最近完成
+- [2026-01-20] 测试基础设施搭建 (阶段 2: 配置文件)
+  - 后端测试配置: backend/vitest.config.ts
+    - 使用 @cloudflare/vitest-pool-workers 模拟 Workers 环境
+    - 配置 D1 数据库测试环境
+    - 设置覆盖率目标 80% (lines/functions/statements)
+  - 前端测试配置: frontend/vitest.config.ts
+    - 使用 jsdom 模拟浏览器环境
+    - 集成 Testing Library 和 Jest DOM
+    - 支持路径别名和静态资源导入
+  - E2E 测试配置: frontend/playwright.config.ts
+    - 配置多浏览器测试 (Chrome/Firefox/Safari)
+    - 设置测试超时和重试策略
+    - 自动启动开发服务器
+  - 测试环境设置: frontend/src/test/setup.ts
+    - 导入 Jest DOM 扩展断言
+    - 模拟 window.matchMedia 和 IntersectionObserver
+    - 配置测试前后钩子函数
+
 - [2026-01-20] P0 致命问题修复 (质量门控不通过问题)
   - 数据库迁移文件: backend/migrations/0000_initial_schema.sql
     - 创建 users、categories、links 三张核心表

@@ -36,3 +36,19 @@ desktop.ini
 *.egg-info/
 dist/
 build/
+
+# Node.js
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Cloudflare
+.wrangler/
+wrangler.toml.bak
+
+# Test coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/

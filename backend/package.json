@@ -12,7 +12,11 @@
     "db:create": "wrangler d1 create cf-nav-db",
     "cf-typegen": "wrangler types",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "keywords": [
     "cloudflare",
@@ -23,19 +27,23 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "hono": "^4.0.0",
-    "drizzle-orm": "^0.29.3",
     "@hono/zod-validator": "^0.2.1",
-    "zod": "^3.22.4",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "drizzle-orm": "^0.29.3",
+    "hono": "^4.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.4",
     "@cloudflare/workers-types": "^4.20231218.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.5",
-    "wrangler": "^3.22.1",
+    "@types/node": "^25.0.9",
+    "@vitest/coverage-v8": "^3.2.4",
+    "drizzle-kit": "^0.20.9",
     "typescript": "^5.3.3",
-    "drizzle-kit": "^0.20.9"
+    "vitest": "^3.2.4",
+    "wrangler": "^3.22.1"
   }
 }

@@ -95,6 +95,28 @@ CF-Nav - Cloudflare 导航网站
   - **可重现**: 任何人都能通过迁移文件重建数据库
 - **实施**: `/backend/migrations/0000_initial_schema.sql`
 
+### ADR-009: 测试框架选择 Vitest + Playwright
+- **背景**: 需要建立完整的测试体系（单元测试 + 集成测试 + E2E测试）
+- **决策**: Vitest（单元/集成） + Playwright（E2E）
+- **原因**:
+  - **Vitest 优势**: Vite 原生支持、速度快（ESM 原生）、API 兼容 Jest
+  - **Workers 兼容**: `@cloudflare/vitest-pool-workers` 完美模拟 Workers 环境
+  - **Playwright 优势**: 多浏览器支持、自动等待、强大的 DevTools
+  - **生态统一**: 前后端使用相同测试框架，降低学习成本
+- **实施**:
+  - `/backend/vitest.config.ts` - 后端测试配置
+  - `/frontend/vitest.config.ts` - 前端测试配置
+  - `/frontend/playwright.config.ts` - E2E 测试配置
+
+### ADR-010: 测试覆盖率目标 80%
+- **背景**: 需要平衡测试质量和开发效率
+- **决策**: 单元测试 80%、集成测试 90% API 覆盖、E2E 100% 关键路径
+- **原因**:
+  - **80/20 法则**: 80% 覆盖率能发现大部分 bug
+  - **成本平衡**: 追求 100% 覆盖率投入产出比低
+  - **质量优先**: 关键业务逻辑必须 100% 测试（认证、支付等）
+- **实施**: `vitest.config.ts` 中配置 `coverage.thresholds`
+
 ---
 
 ## 🏗️ 代码模式

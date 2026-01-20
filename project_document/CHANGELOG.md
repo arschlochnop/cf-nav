@@ -5,6 +5,11 @@
 
 ## [2026-01-20]
 ### 新增
+- feat(test): 创建测试基础设施配置文件
+  - backend/vitest.config.ts - 后端 Vitest 配置 (Workers 环境/D1 数据库/覆盖率 80%)
+  - frontend/vitest.config.ts - 前端 Vitest 配置 (jsdom 环境/Testing Library/覆盖率 80%)
+  - frontend/playwright.config.ts - Playwright E2E 测试配置 (多浏览器/自动重试/自动启动服务器)
+  - frontend/src/test/setup.ts - 测试环境设置文件 (Jest DOM/模拟浏览器 API)
 - feat(database): 添加数据库初始化迁移文件
   - backend/migrations/0000_initial_schema.sql - 完整的数据库 schema (users/categories/links 表 + 索引 + 默认数据)
 - feat(config): 添加后端环境变量配置模板
@@ -21,7 +26,9 @@
   - 0003_create_links_table.sql - 链接表、索引和外键约束
 
 ### 修改
-- 暂无
+- chore(test): 添加测试脚本到 package.json
+  - backend/package.json - 添加 test/test:watch/test:coverage/test:ui 脚本
+  - frontend/package.json - 添加 test/test:watch/test:coverage/test:ui/test:e2e 相关脚本
 
 ### 修复
 - fix(auth): 修复 JWT 密钥安全隐患

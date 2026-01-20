@@ -43,7 +43,7 @@ describe('认证路由集成测试', () => {
    */
   describe('POST /auth/register', () => {
     it('应成功注册新用户', async () => {
-      const response = await SELF.fetch('http://localhost/auth/register', {
+      const response = await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,7 +74,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝弱密码注册', async () => {
-      const response = await SELF.fetch('http://localhost/auth/register', {
+      const response = await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ describe('认证路由集成测试', () => {
       });
 
       // 尝试注册相同用户名
-      const response = await SELF.fetch('http://localhost/auth/register', {
+      const response = await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,7 +133,7 @@ describe('认证路由集成测试', () => {
       });
 
       // 尝试注册相同邮箱
-      const response = await SELF.fetch('http://localhost/auth/register', {
+      const response = await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝无效的邮箱格式', async () => {
-      const response = await SELF.fetch('http://localhost/auth/register', {
+      const response = await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -173,7 +173,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝过短的用户名', async () => {
-      const response = await SELF.fetch('http://localhost/auth/register', {
+      const response = await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -192,7 +192,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝过长的用户名', async () => {
-      const response = await SELF.fetch('http://localhost/auth/register', {
+      const response = await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -211,7 +211,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝缺少必填字段的请求', async () => {
-      const response = await SELF.fetch('http://localhost/auth/register', {
+      const response = await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -231,7 +231,7 @@ describe('认证路由集成测试', () => {
     it('应对密码进行哈希存储', async () => {
       const plainPassword = 'Test1234';
 
-      await SELF.fetch('http://localhost/auth/register', {
+      await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -264,7 +264,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应成功登录并返回 Token', async () => {
-      const response = await SELF.fetch('http://localhost/auth/login', {
+      const response = await SELF.fetch('http://localhost/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -289,7 +289,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝错误的密码', async () => {
-      const response = await SELF.fetch('http://localhost/auth/login', {
+      const response = await SELF.fetch('http://localhost/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -309,7 +309,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝不存在的用户名', async () => {
-      const response = await SELF.fetch('http://localhost/auth/login', {
+      const response = await SELF.fetch('http://localhost/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -329,7 +329,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝空密码', async () => {
-      const response = await SELF.fetch('http://localhost/auth/login', {
+      const response = await SELF.fetch('http://localhost/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -347,7 +347,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝过短的用户名', async () => {
-      const response = await SELF.fetch('http://localhost/auth/login', {
+      const response = await SELF.fetch('http://localhost/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -365,7 +365,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应区分大小写密码', async () => {
-      const response = await SELF.fetch('http://localhost/auth/login', {
+      const response = await SELF.fetch('http://localhost/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -384,7 +384,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应返回有效的 JWT Token', async () => {
-      const response = await SELF.fetch('http://localhost/auth/login', {
+      const response = await SELF.fetch('http://localhost/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -420,11 +420,11 @@ describe('认证路由集成测试', () => {
       });
 
       userId = result.lastInsertRowid as number;
-      validToken = generateToken(userId, 'meuser');
+      validToken = await generateToken(userId, 'meuser', 'test-jwt-secret-key-for-vitest');
     });
 
     it('应返回当前登录用户的信息', async () => {
-      const response = await SELF.fetch('http://localhost/auth/me', {
+      const response = await SELF.fetch('http://localhost/api/auth/me', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${validToken}`,
@@ -444,7 +444,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝没有 Token 的请求', async () => {
-      const response = await SELF.fetch('http://localhost/auth/me', {
+      const response = await SELF.fetch('http://localhost/api/auth/me', {
         method: 'GET',
       });
 
@@ -456,7 +456,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应拒绝无效的 Token', async () => {
-      const response = await SELF.fetch('http://localhost/auth/me', {
+      const response = await SELF.fetch('http://localhost/api/auth/me', {
         method: 'GET',
         headers: {
           Authorization: 'Bearer invalid.token.here',
@@ -473,7 +473,7 @@ describe('认证路由集成测试', () => {
     it('应拒绝篡改的 Token', async () => {
       const tamperedToken = validToken.slice(0, -1) + 'X';
 
-      const response = await SELF.fetch('http://localhost/auth/me', {
+      const response = await SELF.fetch('http://localhost/api/auth/me', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${tamperedToken}`,
@@ -489,9 +489,9 @@ describe('认证路由集成测试', () => {
 
     it('应处理用户不存在的情况', async () => {
       // 创建一个不存在用户的 Token
-      const nonExistentToken = generateToken(999999, 'nonexistent');
+      const nonExistentToken = await generateToken(999999, 'nonexistent', 'test-jwt-secret-key-for-vitest');
 
-      const response = await SELF.fetch('http://localhost/auth/me', {
+      const response = await SELF.fetch('http://localhost/api/auth/me', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${nonExistentToken}`,
@@ -507,7 +507,7 @@ describe('认证路由集成测试', () => {
     });
 
     it('应支持不带 Bearer 前缀的 Token', async () => {
-      const response = await SELF.fetch('http://localhost/auth/me', {
+      const response = await SELF.fetch('http://localhost/api/auth/me', {
         method: 'GET',
         headers: {
           Authorization: validToken, // 直接传 Token
@@ -528,7 +528,7 @@ describe('认证路由集成测试', () => {
   describe('完整的认证流程', () => {
     it('应完成注册 -> 登录 -> 获取用户信息的完整流程', async () => {
       // 1. 注册
-      const registerResponse = await SELF.fetch('http://localhost/auth/register', {
+      const registerResponse = await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -545,7 +545,7 @@ describe('认证路由集成测试', () => {
       const registerToken = registerData.data.token;
 
       // 2. 使用注册返回的 Token 获取用户信息
-      const meResponse1 = await SELF.fetch('http://localhost/auth/me', {
+      const meResponse1 = await SELF.fetch('http://localhost/api/auth/me', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${registerToken}`,
@@ -557,7 +557,7 @@ describe('认证路由集成测试', () => {
       expect(meData1.data.username).toBe('fullflowuser');
 
       // 3. 登录
-      const loginResponse = await SELF.fetch('http://localhost/auth/login', {
+      const loginResponse = await SELF.fetch('http://localhost/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -573,7 +573,7 @@ describe('认证路由集成测试', () => {
       const loginToken = loginData.data.token;
 
       // 4. 使用登录返回的 Token 获取用户信息
-      const meResponse2 = await SELF.fetch('http://localhost/auth/me', {
+      const meResponse2 = await SELF.fetch('http://localhost/api/auth/me', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${loginToken}`,
@@ -591,7 +591,7 @@ describe('认证路由集成测试', () => {
 
     it('应阻止使用旧 Token 访问已删除的用户', async () => {
       // 1. 注册用户
-      const registerResponse = await SELF.fetch('http://localhost/auth/register', {
+      const registerResponse = await SELF.fetch('http://localhost/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -610,7 +610,7 @@ describe('认证路由集成测试', () => {
       await db.delete(users).where(eq(users.username, 'deleteduser'));
 
       // 3. 尝试使用旧 Token 访问
-      const meResponse = await SELF.fetch('http://localhost/auth/me', {
+      const meResponse = await SELF.fetch('http://localhost/api/auth/me', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,

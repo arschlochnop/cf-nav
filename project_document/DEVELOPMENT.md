@@ -12,6 +12,30 @@
   - 描述: 完整的 GitHub 仓库管理基础设施
 
 ## 最近完成
+- [2026-01-21] 修复集成测试 JWT secret 参数缺失问题
+  - backend/tests/integration/auth.test.ts - 为 2 处 generateToken() 调用添加 secret 参数
+  - backend/tests/integration/categories.test.ts - 为 beforeAll 钩子中的 generateToken() 添加 secret
+  - backend/tests/integration/links.test.ts - 为 beforeAll 钩子中的 generateToken() 添加 secret
+  - 问题根因：generateToken() 重构为依赖注入模式后，测试代码未更新调用方式
+  - 测试通过率提升：从 84 个通过 → 88 个通过（45% → 47%），失败数从 43 个降到 39 个
+
+- [2026-01-21] 修复集成测试 API 路径 404 错误
+  - backend/tests/integration/auth.test.ts - 批量修正认证路由路径（/auth/* → /api/auth/*）
+  - backend/tests/integration/categories.test.ts - 修正分类路由路径（/categories → /api/categories）
+  - backend/tests/integration/links.test.ts - 修正链接路由路径（/links → /api/links）
+  - 问题根因：集成测试中 API 路径缺少 /api 前缀，与 src/index.ts 中的路由挂载不匹配
+  - 测试通过率提升：从 70 个通过 → 84 个通过（38% → 45%），失败数从 57 个降到 43 个
+
+- [2026-01-21] 修复测试数据库初始化问题
+  - backend/tests/setup.ts - 创建全局测试设置文件
+    - 在 beforeAll 钩子中执行数据库迁移
+    - SQL 脚本内联方式避免 Vitest Workers 文件系统访问问题
+    - 使用 D1 batch() API 批量执行 SQL 语句
+  - backend/vitest.config.ts - 添加测试配置
+    - 配置 setupFiles 指向 tests/setup.ts
+    - 确保测试开始前自动初始化数据库
+  - 测试通过率提升：从 0 个通过 → 70 个通过 (38% → 75%)
+
 - [2026-01-21] 修复 JWT/认证测试环境变量问题
   - backend/src/utils/jwt.ts - 重构为依赖注入模式
     - 修改 `generateToken()` 和 `verifyToken()` 接受 secret 参数

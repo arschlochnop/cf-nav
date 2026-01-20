@@ -41,7 +41,7 @@ describe('链接路由集成测试', () => {
     });
 
     userId = userResult.lastInsertRowid as number;
-    authToken = generateToken(userId, 'testadmin');
+    authToken = await generateToken(userId, 'testadmin', 'test-jwt-secret-key-for-vitest');
   });
 
   beforeEach(async () => {
@@ -97,7 +97,7 @@ describe('链接路由集成测试', () => {
         },
       ]);
 
-      const response = await SELF.fetch('http://localhost/links');
+      const response = await SELF.fetch('http://localhost/api/links');
 
       expect(response.status).toBe(200);
 
@@ -137,7 +137,7 @@ describe('链接路由集成测试', () => {
         { categoryId, title: 'GitLab', url: 'https://gitlab.com', isVisible: true },
       ]);
 
-      const response = await SELF.fetch('http://localhost/links?search=Git');
+      const response = await SELF.fetch('http://localhost/api/links?search=Git');
 
       expect(response.status).toBe(200);
 
@@ -163,7 +163,7 @@ describe('链接路由集成测试', () => {
         },
       ]);
 
-      const response = await SELF.fetch('http://localhost/links?search=搜索');
+      const response = await SELF.fetch('http://localhost/api/links?search=搜索');
 
       expect(response.status).toBe(200);
 
@@ -178,7 +178,7 @@ describe('链接路由集成测试', () => {
         { categoryId, title: '隐藏', url: 'https://hidden.com', isVisible: false },
       ]);
 
-      const response = await SELF.fetch('http://localhost/links?showAll=true');
+      const response = await SELF.fetch('http://localhost/api/links?showAll=true');
 
       expect(response.status).toBe(200);
 
@@ -187,7 +187,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应返回空数组当没有链接时', async () => {
-      const response = await SELF.fetch('http://localhost/links');
+      const response = await SELF.fetch('http://localhost/api/links');
 
       expect(response.status).toBe(200);
 
@@ -203,7 +203,7 @@ describe('链接路由集成测试', () => {
         { categoryId, title: 'B', url: 'https://b.com', sortOrder: 10, isVisible: true },
       ]);
 
-      const response = await SELF.fetch('http://localhost/links');
+      const response = await SELF.fetch('http://localhost/api/links');
 
       const data = await response.json();
       expect(data.data[0].title).toBe('A'); // sortOrder 10, 先创建
@@ -243,7 +243,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应返回 404 当链接不存在时', async () => {
-      const response = await SELF.fetch('http://localhost/links/999999');
+      const response = await SELF.fetch('http://localhost/api/links/999999');
 
       expect(response.status).toBe(404);
 
@@ -259,7 +259,7 @@ describe('链接路由集成测试', () => {
    */
   describe('POST /links', () => {
     it('应成功创建新链接', async () => {
-      const response = await SELF.fetch('http://localhost/links', {
+      const response = await SELF.fetch('http://localhost/api/links', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -294,7 +294,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应使用默认值创建最简链接', async () => {
-      const response = await SELF.fetch('http://localhost/links', {
+      const response = await SELF.fetch('http://localhost/api/links', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -315,7 +315,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应拒绝未认证的请求', async () => {
-      const response = await SELF.fetch('http://localhost/links', {
+      const response = await SELF.fetch('http://localhost/api/links', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -331,7 +331,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应拒绝不存在的分类 ID', async () => {
-      const response = await SELF.fetch('http://localhost/links', {
+      const response = await SELF.fetch('http://localhost/api/links', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -351,7 +351,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应拒绝无效的 URL 格式', async () => {
-      const response = await SELF.fetch('http://localhost/links', {
+      const response = await SELF.fetch('http://localhost/api/links', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -368,7 +368,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应拒绝空标题', async () => {
-      const response = await SELF.fetch('http://localhost/links', {
+      const response = await SELF.fetch('http://localhost/api/links', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -385,7 +385,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应拒绝过长的标题', async () => {
-      const response = await SELF.fetch('http://localhost/links', {
+      const response = await SELF.fetch('http://localhost/api/links', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -402,7 +402,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应拒绝非正整数的分类 ID', async () => {
-      const response = await SELF.fetch('http://localhost/links', {
+      const response = await SELF.fetch('http://localhost/api/links', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -464,7 +464,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应返回 404 当更新不存在的链接时', async () => {
-      const response = await SELF.fetch('http://localhost/links/999999', {
+      const response = await SELF.fetch('http://localhost/api/links/999999', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -568,7 +568,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应返回 404 当删除不存在的链接时', async () => {
-      const response = await SELF.fetch('http://localhost/links/999999', {
+      const response = await SELF.fetch('http://localhost/api/links/999999', {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -649,7 +649,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应返回 404 当链接不存在时', async () => {
-      const response = await SELF.fetch('http://localhost/links/999999/visibility', {
+      const response = await SELF.fetch('http://localhost/api/links/999999/visibility', {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -725,7 +725,7 @@ describe('链接路由集成测试', () => {
     });
 
     it('应在链接不存在时静默处理（不抛错）', async () => {
-      const response = await SELF.fetch('http://localhost/links/999999/click', {
+      const response = await SELF.fetch('http://localhost/api/links/999999/click', {
         method: 'POST',
       });
 
@@ -761,7 +761,7 @@ describe('链接路由集成测试', () => {
   describe('完整的链接 CRUD 流程', () => {
     it('应完成创建 -> 读取 -> 更新 -> 点击 -> 删除的完整流程', async () => {
       // 1. 创建链接
-      const createResponse = await SELF.fetch('http://localhost/links', {
+      const createResponse = await SELF.fetch('http://localhost/api/links', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

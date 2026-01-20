@@ -12,6 +12,9 @@ import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
 
 export default defineWorkersConfig({
   test: {
+    // 全局测试设置文件（数据库初始化）
+    setupFiles: ['./tests/setup.ts'],
+
     // 使用 Workers 专用测试池（支持 D1, KV, R2 等 Cloudflare 绑定）
     poolOptions: {
       workers: {

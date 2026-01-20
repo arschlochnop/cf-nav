@@ -39,7 +39,7 @@ describe('分类路由集成测试', () => {
     });
 
     userId = userResult.lastInsertRowid as number;
-    authToken = generateToken(userId, 'testadmin');
+    authToken = await generateToken(userId, 'testadmin', 'test-jwt-secret-key-for-vitest');
   });
 
   beforeEach(async () => {
@@ -65,7 +65,7 @@ describe('分类路由集成测试', () => {
         { name: '隐藏分类', description: '不可见', sortOrder: 1, isVisible: false },
       ]);
 
-      const response = await SELF.fetch('http://localhost/categories');
+      const response = await SELF.fetch('http://localhost/api/categories');
 
       expect(response.status).toBe(200);
 
@@ -82,7 +82,7 @@ describe('分类路由集成测试', () => {
         { name: '隐藏1', sortOrder: 1, isVisible: false },
       ]);
 
-      const response = await SELF.fetch('http://localhost/categories?showAll=true');
+      const response = await SELF.fetch('http://localhost/api/categories?showAll=true');
 
       expect(response.status).toBe(200);
 
@@ -98,7 +98,7 @@ describe('分类路由集成测试', () => {
         { name: 'B', sortOrder: 7, isVisible: true },
       ]);
 
-      const response = await SELF.fetch('http://localhost/categories');
+      const response = await SELF.fetch('http://localhost/api/categories');
 
       const data = await response.json();
       expect(data.data[0].name).toBe('A'); // sortOrder: 10
@@ -107,7 +107,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应返回空数组当没有分类时', async () => {
-      const response = await SELF.fetch('http://localhost/categories');
+      const response = await SELF.fetch('http://localhost/api/categories');
 
       expect(response.status).toBe(200);
 
@@ -148,7 +148,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应返回 404 当分类不存在时', async () => {
-      const response = await SELF.fetch('http://localhost/categories/999999');
+      const response = await SELF.fetch('http://localhost/api/categories/999999');
 
       expect(response.status).toBe(404);
 
@@ -181,7 +181,7 @@ describe('分类路由集成测试', () => {
    */
   describe('POST /categories', () => {
     it('应成功创建新分类', async () => {
-      const response = await SELF.fetch('http://localhost/categories', {
+      const response = await SELF.fetch('http://localhost/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -217,7 +217,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应使用默认值创建最简分类', async () => {
-      const response = await SELF.fetch('http://localhost/categories', {
+      const response = await SELF.fetch('http://localhost/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -236,7 +236,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应拒绝未认证的请求', async () => {
-      const response = await SELF.fetch('http://localhost/categories', {
+      const response = await SELF.fetch('http://localhost/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -254,7 +254,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应拒绝空名称', async () => {
-      const response = await SELF.fetch('http://localhost/categories', {
+      const response = await SELF.fetch('http://localhost/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -272,7 +272,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应拒绝过长的名称', async () => {
-      const response = await SELF.fetch('http://localhost/categories', {
+      const response = await SELF.fetch('http://localhost/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -290,7 +290,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应拒绝过长的描述', async () => {
-      const response = await SELF.fetch('http://localhost/categories', {
+      const response = await SELF.fetch('http://localhost/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -309,7 +309,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应拒绝负数的 sortOrder', async () => {
-      const response = await SELF.fetch('http://localhost/categories', {
+      const response = await SELF.fetch('http://localhost/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -377,7 +377,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应返回 404 当更新不存在的分类时', async () => {
-      const response = await SELF.fetch('http://localhost/categories/999999', {
+      const response = await SELF.fetch('http://localhost/api/categories/999999', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -475,7 +475,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应返回 404 当删除不存在的分类时', async () => {
-      const response = await SELF.fetch('http://localhost/categories/999999', {
+      const response = await SELF.fetch('http://localhost/api/categories/999999', {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -563,7 +563,7 @@ describe('分类路由集成测试', () => {
     });
 
     it('应返回 404 当分类不存在时', async () => {
-      const response = await SELF.fetch('http://localhost/categories/999999/visibility', {
+      const response = await SELF.fetch('http://localhost/api/categories/999999/visibility', {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -598,7 +598,7 @@ describe('分类路由集成测试', () => {
   describe('完整的分类 CRUD 流程', () => {
     it('应完成创建 -> 读取 -> 更新 -> 删除的完整流程', async () => {
       // 1. 创建分类
-      const createResponse = await SELF.fetch('http://localhost/categories', {
+      const createResponse = await SELF.fetch('http://localhost/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

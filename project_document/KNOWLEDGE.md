@@ -131,6 +131,23 @@ CF-Nav - Cloudflare 导航网站
   - `auth.ts (middleware)`: 认证中间件从 `c.env.JWT_SECRET` 读取密钥
   - `vitest.config.ts`: 通过 `miniflare.bindings` 注入测试密钥
 
+### ADR-012: 测试数据库初始化 SQL 内联策略
+- **背景**: Vitest Workers 环境下测试报错 "D1_ERROR: no such table: users"，数据库 schema 未初始化
+- **决策**: 在 `tests/setup.ts` 中内联 SQL 迁移脚本，使用 `beforeAll` 钩子初始化测试数据库
+- **原因**:
+  - **Workers 文件系统限制**: `@cloudflare/vitest-pool-workers` 环境无法可靠访问本地文件系统
+  - **避免路径依赖**: `readFileSync()` 在 Workers 环境下路径解析不一致（`__dirname`、`process.cwd()` 均不可靠）
+  - **测试稳定性**: SQL 内联确保测试环境 100% 可重现，不依赖外部文件
+  - **D1 API 兼容**: `db.batch()` 批量执行预编译语句比 `db.exec()` 更稳定（避免 duration 错误）
+- **实施**:
+  - `tests/setup.ts`: 将 `0000_initial_schema.sql` 内容内联为常量 `INITIAL_SCHEMA_SQL`
+  - `runMigration()`: 使用 `db.batch(statements.map(stmt => db.prepare(stmt)))` 批量执行
+  - `vitest.config.ts`: 配置 `setupFiles: ['./tests/setup.ts']` 自动运行初始化
+- **权衡**:
+  - **优点**: 测试稳定、无文件依赖、Workers 兼容
+  - **缺点**: SQL 内容重复（与 migrations/ 目录重复），需手动同步迁移文件变更
+- **维护策略**: 当 `0000_initial_schema.sql` 变更时，必须同步更新 `tests/setup.ts` 中的 `INITIAL_SCHEMA_SQL`
+
 ---
 
 ## 🏗️ 代码模式

@@ -4,11 +4,29 @@
 > **提交规范**: 遵循 commitlint 规范（type(scope): subject）
 
 ## [2026-01-21]
+### 新增
+- feat(test): 创建测试数据库初始化设置文件
+  - backend/tests/setup.ts - 全局测试前置钩子，SQL 脚本内联方式初始化 D1 数据库
+  - backend/vitest.config.ts - 添加 setupFiles 配置指向 tests/setup.ts
+
 ### 修复
 - fix(jwt): 修复 JWT 环境变量访问方式（Cloudflare Workers 兼容性）
   - backend/src/utils/jwt.ts - 重构为依赖注入模式，接受 secret 参数而非直接读取 process.env
   - backend/src/routes/auth.ts - 从 c.env.JWT_SECRET 读取密钥并传递给 JWT 工具函数
   - backend/src/middleware/auth.ts - 更新认证中间件从 c.env 读取环境变量
+- fix(test): 修复测试环境数据库表不存在问题
+  - backend/tests/setup.ts - 使用 SQL 内联方案避免 Vitest Workers 文件系统访问问题
+  - backend/vitest.config.ts - 配置全局测试设置文件
+- fix(test): 修复集成测试 API 路径缺少 /api 前缀导致 404 错误
+  - backend/tests/integration/auth.test.ts - 修正所有认证路由路径（/auth/* → /api/auth/*）
+  - backend/tests/integration/categories.test.ts - 修正分类路由路径（/categories → /api/categories）
+  - backend/tests/integration/links.test.ts - 修正链接路由路径（/links → /api/links）
+  - 测试通过率提升：从 70 个通过 → 84 个通过（38% → 45%）
+- fix(test): 修复集成测试中 generateToken() 缺少 secret 参数
+  - backend/tests/integration/auth.test.ts - 为 2 处 generateToken() 调用添加 secret 参数
+  - backend/tests/integration/categories.test.ts - 为 generateToken() 调用添加 secret 参数
+  - backend/tests/integration/links.test.ts - 为 generateToken() 调用添加 secret 参数
+  - 测试通过率提升：从 84 个通过 → 88 个通过（45% → 47%）
 
 ### 重构
 - 暂无

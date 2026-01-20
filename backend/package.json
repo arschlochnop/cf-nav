@@ -1,0 +1,41 @@
+{
+  "name": "cf-nav-backend",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers backend for CF-Nav",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply cf-nav-db",
+    "db:migrate:local": "wrangler d1 migrations apply cf-nav-db --local",
+    "db:create": "wrangler d1 create cf-nav-db",
+    "cf-typegen": "wrangler types",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "hono",
+    "drizzle"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "hono": "^4.0.0",
+    "drizzle-orm": "^0.29.3",
+    "@hono/zod-validator": "^0.2.1",
+    "zod": "^3.22.4",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5",
+    "wrangler": "^3.22.1",
+    "typescript": "^5.3.3",
+    "drizzle-kit": "^0.20.9"
+  }
+}

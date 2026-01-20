@@ -5,6 +5,11 @@
 
 ## [2026-01-20]
 ### 新增
+- feat(database): 添加数据库初始化迁移文件
+  - backend/migrations/0000_initial_schema.sql - 完整的数据库 schema (users/categories/links 表 + 索引 + 默认数据)
+- feat(config): 添加后端环境变量配置模板
+  - backend/.env.example - JWT_SECRET/ALLOWED_ORIGINS 等配置说明
+
 - feat(config): 创建项目配置文件
   - .gitignore - Git 忽略规则
   - .env.example - 环境变量模板
@@ -19,7 +24,10 @@
 - 暂无
 
 ### 修复
-- 暂无
+- fix(auth): 修复 JWT 密钥安全隐患
+  - backend/src/utils/jwt.ts - 移除默认密钥，强制要求环境变量 JWT_SECRET
+- fix(cors): 修复 CORS 配置过于宽松的安全问题
+  - backend/src/index.ts - 从环境变量读取允许的域名列表，拒绝未授权请求
 
 ### 重构
 - 暂无

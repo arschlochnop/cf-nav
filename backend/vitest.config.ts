@@ -24,6 +24,7 @@ export default defineWorkersConfig({
           bindings: {
             // 测试环境变量
             NODE_ENV: 'test',
+            JWT_SECRET: 'test-jwt-secret-key-for-vitest',
           },
         },
       },

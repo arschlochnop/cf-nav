@@ -4,10 +4,14 @@ import jwt from 'jsonwebtoken';
  * JWT 配置常量
  * 注意：JWT_SECRET 必须在环境变量中配置，否则程序将无法启动
  */
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('环境变量 JWT_SECRET 未设置！请在 .env 文件或 wrangler.toml 中配置');
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('环境变量 JWT_SECRET 未设置！请在 .env 文件或 wrangler.toml 中配置');
+  }
+  return secret;
 }
+
 const JWT_EXPIRES_IN = '7d'; // Token 有效期 7 天
 
 /**
@@ -33,7 +37,7 @@ export function generateToken(userId: number, username: string): string {
       username,
     };
 
-    return jwt.sign(payload, JWT_SECRET, {
+    return jwt.sign(payload, getJwtSecret(), {
       expiresIn: JWT_EXPIRES_IN,
     });
   } catch (error) {
@@ -49,7 +53,7 @@ export function generateToken(userId: number, username: string): string {
  */
 export function verifyToken(token: string): JWTPayload {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload;
     return decoded;
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {

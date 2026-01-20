@@ -117,6 +117,20 @@ CF-Nav - Cloudflare 导航网站
   - **质量优先**: 关键业务逻辑必须 100% 测试（认证、支付等）
 - **实施**: `vitest.config.ts` 中配置 `coverage.thresholds`
 
+### ADR-011: JWT 工具函数依赖注入模式
+- **背景**: Cloudflare Workers 环境下无法使用 `process.env` 直接访问环境变量，导致测试失败
+- **决策**: JWT 工具函数（`generateToken`/`verifyToken`）采用依赖注入模式，接受 `secret` 参数
+- **原因**:
+  - **Workers 兼容性**: Cloudflare Workers 通过 `env` 对象传递环境变量，而非 `process.env`
+  - **测试友好**: 测试时可以直接传入测试密钥，无需 mock `process.env`
+  - **遵循 SOLID**: 依赖倒置原则（DIP），调用方注入依赖而非工具函数直接依赖全局变量
+  - **类型安全**: TypeScript 强类型检查确保 `secret` 参数不为空
+- **实施**:
+  - `jwt.ts`: 修改函数签名添加 `secret: string` 参数
+  - `auth.ts`: 从 `c.env.JWT_SECRET` 读取密钥并传递
+  - `auth.ts (middleware)`: 认证中间件从 `c.env.JWT_SECRET` 读取密钥
+  - `vitest.config.ts`: 通过 `miniflare.bindings` 注入测试密钥
+
 ---
 
 ## 🏗️ 代码模式

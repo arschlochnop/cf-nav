@@ -2,9 +2,18 @@ import { Context, Next } from 'hono';
 import { verifyToken, extractToken } from '../utils/jwt';
 
 /**
- * 扩展 Hono Context 类型，添加用户信息
+ * 环境变量类型定义
+ */
+type Bindings = {
+  DB: D1Database;
+  JWT_SECRET: string;
+};
+
+/**
+ * 扩展 Hono Context 类型，添加用户信息和环境变量
  */
 export interface AuthContext extends Context {
+  env: Bindings;
   user?: {
     userId: number;
     username: string;
@@ -16,7 +25,7 @@ export interface AuthContext extends Context {
  * 验证请求的 Authorization Header 中的 Token
  * 验证成功后将用户信息注入到 context 中
  */
-export async function authMiddleware(c: Context, next: Next) {
+export async function authMiddleware(c: AuthContext, next: Next) {
   try {
     // 提取 Authorization Header
     const authHeader = c.req.header('Authorization');
@@ -33,8 +42,8 @@ export async function authMiddleware(c: Context, next: Next) {
       );
     }
 
-    // 验证 Token
-    const payload = verifyToken(token);
+    // 验证 Token（从环境变量获取密钥）
+    const payload = verifyToken(token, c.env.JWT_SECRET);
 
     // 将用户信息注入到 context
     c.set('user', {
@@ -62,14 +71,14 @@ export async function authMiddleware(c: Context, next: Next) {
  * 如果提供了 Token 则验证，但不强制要求
  * 用于某些需要区分登录/未登录状态的接口
  */
-export async function optionalAuthMiddleware(c: Context, next: Next) {
+export async function optionalAuthMiddleware(c: AuthContext, next: Next) {
   try {
     const authHeader = c.req.header('Authorization');
     const token = extractToken(authHeader);
 
     if (token) {
       try {
-        const payload = verifyToken(token);
+        const payload = verifyToken(token, c.env.JWT_SECRET);
         c.set('user', {
           userId: payload.userId,
           username: payload.username,

@@ -3,15 +3,12 @@ import jwt from 'jsonwebtoken';
 /**
  * JWT 配置常量
  * 注意：JWT_SECRET 必须在环境变量中配置，否则程序将无法启动
+ *
+ * 设计说明：
+ * - 在 Cloudflare Workers 环境下，环境变量通过 env 对象传递，而非 process.env
+ * - 在测试环境下，环境变量通过 Vitest 配置的 miniflare.bindings 传递
+ * - 为了兼容两种环境，这里使用依赖注入模式：调用方传入 secret
  */
-function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('环境变量 JWT_SECRET 未设置！请在 .env 文件或 wrangler.toml 中配置');
-  }
-  return secret;
-}
-
 const JWT_EXPIRES_IN = '7d'; // Token 有效期 7 天
 
 /**
@@ -28,16 +25,21 @@ export interface JWTPayload {
  * 生成 JWT Token
  * @param userId 用户 ID
  * @param username 用户名
+ * @param secret JWT 密钥（来自环境变量）
  * @returns JWT Token 字符串
  */
-export function generateToken(userId: number, username: string): string {
+export function generateToken(userId: number, username: string, secret: string): string {
+  if (!secret) {
+    throw new Error('JWT_SECRET 未设置！请在环境变量中配置');
+  }
+
   try {
     const payload: JWTPayload = {
       userId,
       username,
     };
 
-    return jwt.sign(payload, getJwtSecret(), {
+    return jwt.sign(payload, secret, {
       expiresIn: JWT_EXPIRES_IN,
     });
   } catch (error) {
@@ -48,12 +50,17 @@ export function generateToken(userId: number, username: string): string {
 /**
  * 验证并解析 JWT Token
  * @param token JWT Token 字符串
+ * @param secret JWT 密钥（来自环境变量）
  * @returns 解析后的 Payload
  * @throws 验证失败时抛出错误
  */
-export function verifyToken(token: string): JWTPayload {
+export function verifyToken(token: string, secret: string): JWTPayload {
+  if (!secret) {
+    throw new Error('JWT_SECRET 未设置！请在环境变量中配置');
+  }
+
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload;
+    const decoded = jwt.verify(token, secret) as JWTPayload;
     return decoded;
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {

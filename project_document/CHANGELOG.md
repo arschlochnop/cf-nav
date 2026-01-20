@@ -3,6 +3,16 @@
 > **格式要求**: 严格遵循 `.claude/output-styles/bullet-points.md` 格式规范
 > **提交规范**: 遵循 commitlint 规范（type(scope): subject）
 
+## [2026-01-21]
+### 修复
+- fix(jwt): 修复 JWT 环境变量访问方式（Cloudflare Workers 兼容性）
+  - backend/src/utils/jwt.ts - 重构为依赖注入模式，接受 secret 参数而非直接读取 process.env
+  - backend/src/routes/auth.ts - 从 c.env.JWT_SECRET 读取密钥并传递给 JWT 工具函数
+  - backend/src/middleware/auth.ts - 更新认证中间件从 c.env 读取环境变量
+
+### 重构
+- 暂无
+
 ## [2026-01-20]
 ### 新增
 - feat(test): 创建测试基础设施配置文件

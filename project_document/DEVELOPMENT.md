@@ -12,6 +12,20 @@
   - 描述: 完整的 GitHub 仓库管理基础设施
 
 ## 最近完成
+- [2026-01-21] 修复 JWT/认证测试环境变量问题
+  - backend/src/utils/jwt.ts - 重构为依赖注入模式
+    - 修改 `generateToken()` 和 `verifyToken()` 接受 secret 参数
+    - 移除 `process.env` 直接访问（不兼容 Workers 环境）
+    - 添加详细注释说明 Cloudflare Workers 环境变量访问方式
+  - backend/src/routes/auth.ts - 更新 JWT 调用
+    - 添加 Bindings 类型定义（DB + JWT_SECRET）
+    - 从 `c.env.JWT_SECRET` 读取密钥并传递给 `generateToken()`
+    - 登录和注册接口均更新环境变量注入方式
+  - backend/src/middleware/auth.ts - 更新认证中间件
+    - 添加 AuthContext 类型定义（包含 env: Bindings）
+    - 认证中间件和可选认证中间件均从 `c.env.JWT_SECRET` 读取密钥
+    - 确保所有 Token 验证使用正确的环境变量源
+
 - [2026-01-20] 测试基础设施搭建 (阶段 2: 配置文件)
   - 后端测试配置: backend/vitest.config.ts
     - 使用 @cloudflare/vitest-pool-workers 模拟 Workers 环境

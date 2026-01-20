@@ -9,9 +9,17 @@ import { generateToken } from '../utils/jwt';
 import { authMiddleware } from '../middleware/auth';
 
 /**
+ * 环境变量类型定义
+ */
+type Bindings = {
+  DB: D1Database;
+  JWT_SECRET: string;
+};
+
+/**
  * 认证路由模块
  */
-const auth = new Hono<{ Bindings: { DB: D1Database } }>();
+const auth = new Hono<{ Bindings: Bindings }>();
 
 /**
  * 登录请求验证 Schema
@@ -68,8 +76,8 @@ auth.post('/login', zValidator('json', loginSchema), async (c) => {
       );
     }
 
-    // 生成 JWT Token
-    const token = generateToken(user.id, user.username);
+    // 生成 JWT Token（从环境变量获取密钥）
+    const token = generateToken(user.id, user.username, c.env.JWT_SECRET);
 
     return c.json({
       success: true,
@@ -157,8 +165,8 @@ auth.post('/register', zValidator('json', registerSchema), async (c) => {
       email,
     });
 
-    // 生成 Token
-    const token = generateToken(result.lastInsertRowid as number, username);
+    // 生成 Token（从环境变量获取密钥）
+    const token = generateToken(result.lastInsertRowid as number, username, c.env.JWT_SECRET);
 
     return c.json(
       {

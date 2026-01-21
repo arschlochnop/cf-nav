@@ -6,6 +6,7 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import auth from './routes/auth';
 import categoriesRouter from './routes/categories';
 import linksRouter from './routes/links';
+import monitorRouter from './routes/monitor';
 
 /**
  * 环境变量类型定义
@@ -128,6 +129,7 @@ app.get('/api', (c) => {
 app.route('/api/auth', auth);
 app.route('/api/categories', categoriesRouter);
 app.route('/api/links', linksRouter);
+app.route('/api/monitor', monitorRouter);
 
 /**
  * 404 处理

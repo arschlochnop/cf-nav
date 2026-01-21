@@ -4,6 +4,7 @@ import { Home } from '@/pages/Home';
 import { Login } from '@/pages/Login';
 import { Admin } from '@/pages/Admin';
 import { ChangePassword } from '@/pages/ChangePassword';
+import { MonitorStatusPage } from '@/pages/MonitorStatusPage';
 
 /**
  * 受保护的路由组件
@@ -28,6 +29,7 @@ export function App() {
         {/* 公开路由 */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/monitor" element={<MonitorStatusPage />} />
 
         {/* 受保护的管理路由 */}
         <Route

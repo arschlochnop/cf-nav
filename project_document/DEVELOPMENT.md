@@ -3,23 +3,78 @@
 > **格式要求**: 严格遵循 `.claude/output-styles/bullet-points.md` 格式规范
 
 ## 当前任务
-- [x] GitHub 仓库管理设施搭建
-- [x] Git 仓库初始化和远程仓库配置
-- [x] Cloudflare 生产环境部署（已完成）
-- [x] 项目代码重组和文档完善（已完成）
+- [ ] 监控状态页面功能开发（进行中）
+  - 分支: feature/monitor-status-page
+  - 设计: Uptime Kuma 风格
+  - 计划文档: project_document/plans/monitor-status-implementation-plan.md
 
 ## 任务详情
-- GitHub 仓库管理设施
-  - 状态: 已完成
-  - 文件: `.github/` 目录
-  - 描述: 完整的 GitHub 仓库管理基础设施
-- Git 仓库初始化
-  - 状态: 已完成
-  - 仓库: git@github.com:arschlochnop/cf-nav.git
-  - 分支策略: github-flow（main 分支 + 功能分支）
-  - 描述: 配置本地 Git 仓库并推送到 GitHub
+- 监控状态页面开发
+  - 状态: 进行中
+  - 分支: feature/monitor-status-page
+  - 设计文档: project_document/designs/monitor-status-uptime-kuma-style.md
+  - 实施计划: project_document/plans/monitor-status-implementation-plan.md
+  - 任务清单:
+    - [ ] 数据库迁移 - 扩展 links 表字段（监控配置）
+    - [ ] 数据库迁移 - 创建 monitor_logs 表（检测记录）
+    - [ ] 后端 API - 创建 GET /api/monitor/status 端点
+    - [ ] 后端逻辑 - 实现在线率计算和整体状态判断
+    - [ ] 前端组件 - 创建 UptimeTimeline 时间轴组件
+    - [ ] 前端组件 - 创建 MonitorServiceCard 服务卡片
+    - [ ] 前端页面 - 创建 MonitorStatusPage 监控页面
+    - [ ] 路由配置 - 添加 /monitor 路由到 App.tsx
+    - [ ] 本地测试 - 验证监控页面功能
+    - [ ] 部署到 Cloudflare - 数据库迁移和应用部署
 
 ## 最近完成
+- [2026-01-21] 修复 Drizzle Schema 与数据库迁移同步问题 🐛
+  - backend/src/db/schema.ts - 添加监控字段到 links 表 schema 定义
+  - 问题根因：数据库迁移 0001_add_monitor_fields.sql 成功添加字段，但 Drizzle ORM schema 未同步更新
+  - 错误表现：API 返回 {"success":false,"message":"获取监控状态失败","code":"MONITOR_ERROR"}
+  - 根本原因：Drizzle 尝试查询 links.isMonitored 时无法映射列（schema 中该字段不存在）
+  - 修复方案：在 schema.ts 的 links 表中添加 6 个监控字段：
+    - isMonitored（是否启用监控）、checkInterval（检测间隔）、checkMethod（检测方法）
+    - lastCheckedAt（最后检测时间）、monitorStatus（当前状态）、responseTime（响应时间）
+  - 部署验证：重新部署后端，API 正常返回 {"overallStatus":"operational","services":[],"lastUpdated":1768980170}
+  - 经验教训：数据库迁移与 ORM schema 必须保持同步，否则运行时会报错
+- [2026-01-21] 创建监控功能本地测试指南 📋
+  - TEST_GUIDE.md - 完整的测试指南文档（300+ 行）
+  - 9 个测试步骤：前置准备、启动服务器、API 测试、前端页面、响应式设计、自动刷新、错误处理、Hover 效果、问题排查
+  - 测试清单：环境变量检查、数据库迁移确认、后端 API 验证、前端渲染验证
+  - 移动端测试：桌面端 45 条时间轴 vs 移动端 30 条时间轴验证
+  - 自动刷新测试：30 秒间隔自动发送 API 请求验证
+  - 错误处理测试：后端不可用时显示错误提示 + 重试按钮
+  - Hover 效果测试：时间轴竖条 hover 放大 110% + 显示 tooltip
+  - 常见问题排查：后端启动失败、CORS 错误、API 返回空数组、时间轴空白
+  - 测试记录表：测试时间、测试结果、发现问题的记录模板
+- [2026-01-21] 完成监控状态页面路由配置 🛤️
+  - frontend/src/App.tsx - 添加 /monitor 公开路由（无需认证）
+  - 导入 MonitorStatusPage 组件
+  - 配置路由路径：/monitor → MonitorStatusPage
+  - 路由类型：公开路由（与首页、登录页同级）
+  - 任何用户都可以访问监控状态页面
+- [2026-01-21] 创建监控状态主页面（MonitorStatusPage）📊
+  - frontend/src/pages/MonitorStatusPage.tsx - 完整的监控状态页面（350+ 行）
+  - React Query 自动刷新：每 30 秒自动获取最新数据
+  - OverallStatusBanner 整体状态横幅：显示系统整体状态（全部正常/部分异常/大部分异常）
+  - 服务卡片网格布局：2 列响应式布局（桌面端），1 列（移动端）
+  - Skeleton 加载状态：3 个卡片骨架屏动画
+  - 错误处理：显示错误信息 + 重试按钮
+  - 空状态提示：暂无监控服务时显示友好提示
+  - 移动端检测：window.innerWidth < 768px 自动切换布局
+  - 页面头部：标题 + 描述
+  - 页面底部：数据刷新说明
+  - 完整的可访问性支持：role、aria-live、aria-label
+- [2026-01-21] 创建监控服务卡片组件（MonitorServiceCard）📊
+  - frontend/src/components/monitor/MonitorServiceCard.tsx - 完整的服务卡片组件（190+ 行）
+  - 显示服务名称、在线率徽章、当前状态指示器、UptimeTimeline 时间轴
+  - 在线率徽章颜色规则：≥99.5% 深绿色、≥95% 浅绿色、≥90% 黄色、<90% 红色
+  - 卡片 Hover 效果：放大 102%、阴影加深（shadow-md → shadow-lg）
+  - 当前状态指示器：小圆点 + 文字（绿色=在线、红色=离线、黄色=慢速、灰色=未知）
+  - 使用 React.memo 优化性能，避免不必要的重渲染
+  - 响应式设计：桌面端显示"最近 45 次检测记录"提示，移动端隐藏
+  - 完整类型定义：MonitorService、MonitorServiceCardProps
+  - Tailwind CSS 样式：p-4 内边距、rounded-lg 圆角、shadow-md 阴影、border 边框
 - [2026-01-21] 修复外部图标加载 Referer 泄露安全隐患 🔒
   - 问题背景
     - 用户报告：添加的网站图标引用第三方 URL 时会泄露 Referer 信息

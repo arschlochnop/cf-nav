@@ -395,6 +395,90 @@ CF-Nav - Cloudflare 导航网站
 
 ## 🏗️ 代码模式
 
+### 监控可视化组件模式
+
+#### MonitorServiceCard（监控服务卡片）
+```typescript
+import React from 'react';
+import { UptimeTimeline } from './UptimeTimeline';
+
+interface MonitorService {
+  id: number;
+  name: string; // 服务名称（不包含 URL，隐私保护）
+  uptimePercentage: number; // 在线率（0-100，保留 1 位小数）
+  currentStatus: 'up' | 'down' | 'slow' | 'unknown';
+  timeline: Array<{
+    timestamp: number;
+    status: 'up' | 'down' | 'slow';
+    responseTime: number;
+  }>;
+}
+
+interface MonitorServiceCardProps {
+  service: MonitorService;
+  isMobile?: boolean;
+}
+
+// 在线率徽章颜色规则（老王我定的标准）
+function getUptimeBadgeColor(percentage: number): string {
+  if (percentage >= 99.5) return 'bg-green-500 text-white'; // 优秀
+  if (percentage >= 95.0) return 'bg-lime-500 text-white'; // 良好
+  if (percentage >= 90.0) return 'bg-yellow-500 text-black'; // 警告
+  return 'bg-red-500 text-white'; // 危险
+}
+
+export const MonitorServiceCard = React.memo<MonitorServiceCardProps>(
+  ({ service, isMobile = false }) => {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-4 transition-all duration-300 hover:scale-102 hover:shadow-lg">
+        {/* 顶部：服务名称 + 在线率徽章 */}
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-gray-800 truncate max-w-[60%]">
+            {service.name}
+          </h3>
+          <span className={`px-3 py-1 rounded-full text-sm font-bold ${getUptimeBadgeColor(service.uptimePercentage)}`}>
+            {service.uptimePercentage.toFixed(1)}%
+          </span>
+        </div>
+
+        {/* 中部：当前状态指示器 */}
+        <div className="flex items-center mb-4">
+          <span className={`w-3 h-3 rounded-full mr-2 ${getCurrentStatusColor(service.currentStatus)}`}></span>
+          <span className="text-sm text-gray-600">{getCurrentStatusText(service.currentStatus)}</span>
+        </div>
+
+        {/* 底部：时间轴组件 */}
+        <UptimeTimeline timeline={service.timeline} isMobile={isMobile} />
+      </div>
+    );
+  }
+);
+```
+
+**设计规范**:
+- **卡片布局**: 白色背景、8px 圆角、中等阴影、16px 内边距
+- **Hover 效果**: 放大 102%、阴影加深到 lg 级别、300ms 过渡
+- **在线率徽章**: 9999px 圆角（完全圆形）、上下 4px/左右 12px 内边距、加粗文字
+- **颜色规则**:
+  - ≥99.5%: 深绿色 (bg-green-500) - 优秀
+  - ≥95.0%: 浅绿色 (bg-lime-500) - 良好
+  - ≥90.0%: 黄色 (bg-yellow-500) - 警告
+  - <90.0%: 红色 (bg-red-500) - 危险
+- **状态指示器**: 3px × 3px 圆点 + 2px 右边距 + 文字
+- **性能优化**: 使用 React.memo 避免不必要的重渲染
+- **响应式**: 桌面端显示"最近 45 次检测记录"提示，移动端隐藏
+- **可访问性**: 完整的 aria-label 标签和 role 属性
+
+**组件依赖**:
+- 依赖 UptimeTimeline 组件（显示时间轴条形图）
+- 依赖 lucide-react 图标库（未来扩展可能需要）
+- 依赖 Tailwind CSS 样式系统
+
+**使用场景**:
+- MonitorStatusPage 页面使用，显示多个监控服务的卡片列表
+- 每个卡片展示一个被监控网站的可用性状态
+- 支持桌面端和移动端响应式显示
+
 ### 认证模式
 
 #### JWT Token 生成
@@ -664,6 +748,50 @@ it('应允许携带有效 Token 的请求通过', async () => {
 
 ## ❓ 常见问题
 
+### Q: Drizzle ORM Schema 与数据库迁移不同步怎么办？
+**A**: 这是一个常见的陷阱，数据库迁移成功但应用仍然报错。
+
+**问题表现**:
+- 数据库迁移成功执行（wrangler d1 execute）
+- 但 API 运行时报错："获取监控状态失败"
+- 数据库中字段存在，但 Drizzle 无法查询
+
+**根本原因**:
+- Drizzle ORM 不会自动读取数据库 schema
+- 它依赖 TypeScript schema 定义（如 `backend/src/db/schema.ts`）
+- 如果 schema 文件未更新，Drizzle 不知道新字段存在
+- 尝试查询未定义字段时会触发运行时错误
+
+**解决方案**:
+```typescript
+// 数据库迁移: 0001_add_monitor_fields.sql
+ALTER TABLE links ADD COLUMN is_monitored INTEGER DEFAULT 0 NOT NULL;
+
+// ✅ 必须同步更新 Drizzle schema:
+export const links = sqliteTable('links', {
+  // ... 现有字段 ...
+
+  // 新增监控字段（与迁移 SQL 一致）
+  isMonitored: integer('is_monitored', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+});
+```
+
+**最佳实践**:
+1. **先写迁移 SQL**：定义数据库结构变更
+2. **同步更新 schema.ts**：添加对应的 Drizzle 字段定义
+3. **类型校验**：确保字段类型匹配（SQLite 类型 → Drizzle 类型）
+4. **测试验证**：本地测试后再部署到生产环境
+
+**检查清单**:
+- [ ] 数据库迁移文件已执行（wrangler d1 execute）
+- [ ] schema.ts 已添加新字段定义
+- [ ] 字段类型正确（integer/text/timestamp）
+- [ ] 默认值与迁移 SQL 一致
+- [ ] 本地测试通过
+- [ ] 生产环境部署验证
+
 ### Q: Workers CPU 时间超出 50ms 怎么办？
 **A**: 使用 Workers KV 缓存热点数据，减少 D1 查询次数。示例：
 - 缓存首页链接列表（TTL 5 分钟）
@@ -883,6 +1011,102 @@ tsc --noEmit --watch
 - [ ] Content-Security-Policy 头配置
 - [ ] 防止 XSS（React 自动转义）
 - [ ] 防止 CSRF（CSRF Token 验证）
+
+---
+
+## 🧪 监控功能测试指南
+
+### 测试文档位置
+- **完整测试指南**: `/TEST_GUIDE.md` (300+ 行详细测试步骤)
+- **测试目标**: 验证监控状态页面功能是否正常工作
+
+### 测试准备清单
+- [ ] 后端服务器启动成功 (`wrangler dev`)
+- [ ] 前端服务器启动成功 (`npm run dev`)
+- [ ] 数据库 migrations 已执行（0001_add_monitor_fields.sql + 0002_create_monitor_logs.sql）
+- [ ] 环境变量配置正确（JWT_SECRET、ALLOWED_ORIGINS）
+
+### 核心测试要点
+
+#### API 端点验证
+- **端点**: `GET /api/monitor/status`
+- **访问方式**: 公开（无需认证）
+- **预期响应**:
+  ```json
+  {
+    "overallStatus": "operational",
+    "services": [],
+    "lastUpdated": 1737446400
+  }
+  ```
+- **测试命令**: `curl http://localhost:8787/api/monitor/status | jq`
+
+#### 前端页面验证
+- **访问地址**: `http://localhost:5173/monitor`
+- **页面元素**:
+  - ✅ 页面标题："系统监控状态"
+  - ✅ 整体状态横幅（OverallStatusBanner）
+  - ✅ 服务卡片网格布局（如果有数据）
+  - ✅ 空状态提示（如果无数据）
+- **响应式设计**:
+  - 桌面端（≥768px）: 45 条时间轴 + 2 列网格
+  - 移动端（<768px）: 30 条时间轴 + 1 列布局
+
+#### 自动刷新测试
+- **刷新间隔**: 30 秒
+- **验证方式**: 打开浏览器 Network 标签，观察 API 请求
+- **预期行为**:
+  - 初始加载：1 次 API 请求
+  - 30 秒后：自动发送第 2 次请求
+  - 持续刷新：每 30 秒一次
+
+#### 错误处理测试
+- **测试步骤**: 停止后端服务器 → 刷新前端页面
+- **预期行为**:
+  - 显示红色错误提示框
+  - 错误消息："获取监控状态失败"
+  - 显示"重试"按钮
+  - 点击"重试"重新发送请求
+
+#### 移动端测试
+- **测试工具**: Chrome DevTools 移动设备模拟
+- **测试设备**: iPhone 14 Pro
+- **验证要点**:
+  - [ ] 1 列服务卡片布局
+  - [ ] 时间轴显示 30 个竖条（而非 45 个）
+  - [ ] 文字大小适配移动端
+
+### 常见测试问题
+
+#### ❌ 后端启动失败
+**症状**: `wrangler dev` 报错
+**排查步骤**:
+1. 检查 `wrangler.toml` 中的 D1 数据库绑定
+2. 确认 `database_id` 正确
+3. 确认 `binding = "DB"` 配置正确
+
+#### ❌ CORS 错误
+**症状**: 浏览器控制台报错 "CORS policy"
+**排查步骤**:
+1. 检查 `backend/.env` 中的 `ALLOWED_ORIGINS`
+2. 确认包含 `http://localhost:5173`
+3. 重启后端服务器
+
+#### ❌ API 返回空数组
+**症状**: `{ services: [] }`
+**原因**: 数据库中没有启用监控的链接
+**解决**: 这是正常的，需要在管理后台启用监控功能
+
+### 测试完成标准
+- [x] 后端服务器成功启动
+- [x] 前端服务器成功启动
+- [x] API 返回正确的 JSON 结构
+- [x] 监控页面正确渲染
+- [x] 整体状态横幅显示正确
+- [x] 空状态提示显示正确
+- [x] 移动端布局正确适配
+- [x] 自动刷新功能正常工作
+- [x] 错误处理正确显示
 
 ---
 

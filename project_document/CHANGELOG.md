@@ -5,6 +5,42 @@
 
 ## [2026-01-21]
 ### 新增
+- docs(test): 创建监控功能本地测试指南
+  - TEST_GUIDE.md - 完整的测试指南文档（300+ 行，9 个测试步骤）
+  - 前置准备：环境变量检查、数据库迁移确认
+  - API 测试：curl 命令验证、响应结构检查
+  - 前端测试：页面渲染验证、组件显示验证
+  - 响应式测试：桌面端 45 条时间轴 vs 移动端 30 条验证
+  - 自动刷新测试：30 秒间隔请求验证
+  - 错误处理测试：后端不可用场景模拟
+  - Hover 效果测试：时间轴竖条交互验证
+  - 常见问题排查：启动失败、CORS 错误、空数据等问题解决方案
+  - 测试记录表：时间、结果、问题记录模板
+- feat(monitor): 创建 MonitorStatusPage 监控状态主页面
+  - frontend/src/pages/MonitorStatusPage.tsx - 监控状态主页面（350+ 行）
+  - React Query 自动刷新（30 秒间隔）
+  - OverallStatusBanner 整体状态横幅组件
+  - 服务卡片网格布局（2 列桌面 / 1 列移动）
+  - Skeleton 加载状态 + 错误处理 + 空状态提示
+  - 移动端响应式检测（window.innerWidth < 768px）
+  - 完整的可访问性支持（role、aria-live、aria-label）
+- feat(monitor): 创建 MonitorServiceCard 监控服务卡片组件
+  - frontend/src/components/monitor/MonitorServiceCard.tsx - 服务卡片组件（显示名称、在线率、状态、时间轴）
+  - 在线率徽章动态颜色（≥99.5% 深绿、≥95% 浅绿、≥90% 黄、<90% 红）
+  - 当前状态指示器（小圆点 + 文字，绿/红/黄/灰）
+  - 卡片 Hover 效果（放大 102%、阴影加深）
+  - 嵌入 UptimeTimeline 组件显示最近 45 次检测记录
+  - React.memo 性能优化
+  - 响应式设计（桌面端显示提示文字，移动端隐藏）
+- feat(monitor): 创建监控状态页面设计原型和实施计划
+  - project_document/designs/monitor-status-uptime-kuma-style.md - Uptime Kuma 风格设计原型（横向时间轴条形图）
+  - project_document/plans/monitor-status-implementation-plan.md - 详细实施计划（10 个任务，预计 1-2 天）
+  - 核心特性：独立公开页面、时间轴可视化、在线率徽章、整体状态横幅、隐私保护（只显示名称）
+  - 技术栈：React Query（自动刷新）+ Tailwind CSS（响应式设计）+ D1 数据库（检测记录存储）
+  - 数据结构：扩展 links 表 + 新增 monitor_logs 表（存储最近 45 次检测记录）
+  - API 设计：GET /api/monitor/status（返回整体状态 + 服务列表 + 时间轴数据）
+  - 组件层次：MonitorStatusPage → MonitorHeader + OverallStatusBanner + MonitorServiceCard × N → UptimeTimeline × 45
+  - 分支：feature/monitor-status-page（基于 github-flow 策略）
 - feat(auth): 实现用户密码修改功能
   - backend/src/routes/auth.ts - 添加 PUT /auth/password 接口（旧密码验证、新密码强度检查、密码重用防护）
   - frontend/src/pages/ChangePassword.tsx - 创建密码修改页面（实时密码强度提示、密码可见性切换、自动跳转）
@@ -45,7 +81,21 @@
   - frontend/public/_redirects - 所有路由重定向到 index.html（/* /index.html 200）
   - 解决 React Router 直接访问路由 404 问题
 
+### 修改
+- feat(routes): 添加监控状态页面路由到 App.tsx
+  - frontend/src/App.tsx - 添加 /monitor 公开路由
+  - 导入 MonitorStatusPage 组件
+  - 配置为公开路由（无需认证）
+
 ### 修复
+- fix(schema): 修复 Drizzle Schema 与数据库迁移同步问题
+  - backend/src/db/schema.ts - 添加监控字段到 links 表 Drizzle ORM schema 定义
+  - 问题根因：数据库迁移 0001_add_monitor_fields.sql 成功添加 6 个监控字段，但 schema.ts 未同步更新
+  - 错误表现：API 调用返回 {"success":false,"message":"获取监控状态失败","code":"MONITOR_ERROR"}
+  - 技术原因：Drizzle 尝试 SELECT links.isMonitored 时无法映射列（TypeScript schema 中字段未定义）
+  - 添加字段：isMonitored、checkInterval、checkMethod、lastCheckedAt、monitorStatus、responseTime
+  - 部署验证：重新部署后端 (Version: f169fa39)，API 正常返回 {"overallStatus":"operational","services":[]}
+  - 经验总结：数据库迁移与 ORM schema 必须同步维护，否则运行时查询会失败
 - fix(security): 防止外部图标加载时泄露 Referer 信息
   - frontend/src/components/LinkCard.tsx - 为 `<img>` 标签添加 `referrerPolicy="no-referrer"` 属性
   - frontend/index.html - 添加全局 `<meta name="referrer" content="no-referrer">` 标签

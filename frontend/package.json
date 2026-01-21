@@ -18,6 +18,7 @@
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.19",
     "axios": "^1.6.5",
     "clsx": "^2.1.0",
     "lucide-react": "^0.309.0",

@@ -50,6 +50,14 @@ export const links = sqliteTable('links', {
   sortOrder: integer('sort_order').notNull().default(0),
   isVisible: integer('is_visible', { mode: 'boolean' }).notNull().default(true),
   clickCount: integer('click_count').notNull().default(0), // 点击统计
+  // 监控配置字段（0001_add_monitor_fields.sql）
+  isMonitored: integer('is_monitored', { mode: 'boolean' }).notNull().default(false), // 是否启用监控
+  checkInterval: integer('check_interval').notNull().default(5), // 检测间隔（分钟）
+  checkMethod: text('check_method').notNull().default('http_status'), // 检测方法：http_status, ping
+  // 监控状态字段
+  lastCheckedAt: integer('last_checked_at', { mode: 'timestamp' }), // 最后检测时间
+  monitorStatus: text('monitor_status').notNull().default('unknown'), // 当前状态：up, down, slow, unknown
+  responseTime: integer('response_time'), // 响应时间（毫秒）
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),

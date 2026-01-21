@@ -5,6 +5,18 @@
 
 ## [2026-01-21]
 ### 新增
+- feat(scripts): 创建一键部署脚本
+  - scripts/deploy.sh - 自动化部署脚本（190+ 行 Bash）
+  - 支持环境检查（Node.js、npm、wrangler）
+  - 支持数据库创建和迁移执行
+  - 支持 JWT_SECRET 自动生成和设置
+  - 支持选择性部署（仅后端/仅前端/全部）
+  - 包含详细的错误提示和用户交互引导
+- feat(docs): 完善项目主 README 文档
+  - README.md - 添加在线演示部分（生产 URL + 测试账号）
+  - README.md - 添加一键部署指南和使用说明
+  - README.md - 补充手动部署详细步骤
+  - 更新仓库地址为实际 GitHub 地址
 - feat(deploy): 完成 Cloudflare 生产环境部署 🎉
   - 创建 D1 数据库（生产和开发环境）并执行迁移
   - 部署后端到 Workers (https://cf-nav-backend.kind-me7262.workers.dev)
@@ -74,7 +86,12 @@
   - 测试通过率提升：从 111 个通过 (60%) → 127 个通过 (68.3%)，失败数从 16 个降到 2 个（剩余 2 个为测试隔离问题，非代码 bug）
 
 ### 重构
-- 暂无
+- refactor(structure): 项目代码结构重组和文档整理
+  - 删除冗余的 cf-nav/ 目录（包含旧配置文件和过期迁移文件）
+  - 重命名 README.md → CLAUDE-CODE-MULTI-AGENT.md（保留框架文档）
+  - 重命名 CF-NAV-README.md → README.md（设置为项目主 README）
+  - 移动 DEPLOY.md → project_document/DEPLOY.md（统一文档管理）
+  - 项目结构更清晰，文档更规范，新手友好度显著提升
 
 ## [2026-01-20]
 ### 新增

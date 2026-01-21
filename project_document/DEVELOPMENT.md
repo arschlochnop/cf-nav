@@ -6,6 +6,7 @@
 - [x] GitHub 仓库管理设施搭建
 - [x] Git 仓库初始化和远程仓库配置
 - [x] Cloudflare 生产环境部署（已完成）
+- [x] 项目代码重组和文档完善（已完成）
 
 ## 任务详情
 - GitHub 仓库管理设施
@@ -19,6 +20,27 @@
   - 描述: 配置本地 Git 仓库并推送到 GitHub
 
 ## 最近完成
+- [2026-01-21] 项目代码重组和文档完善 ✨
+  - 项目结构优化
+    - 删除冗余的 cf-nav/ 目录（包含旧的配置文件和迁移文件）
+    - 重命名 README.md → CLAUDE-CODE-MULTI-AGENT.md（保留框架文档）
+    - 重命名 CF-NAV-README.md → README.md（设置为项目主 README）
+    - 移动 DEPLOY.md → project_document/DEPLOY.md（统一文档管理）
+  - README.md 完善
+    - 添加在线演示部分（生产 URL、测试账号信息）
+    - 添加一键部署指南（方式一：自动化脚本）
+    - 补充手动部署说明（方式二：分步操作）
+    - 更新仓库地址为实际 GitHub 仓库
+  - 自动化部署
+    - scripts/deploy.sh - 创建一键部署脚本（190+ 行）
+    - 支持环境检查、数据库创建、迁移执行、密钥设置
+    - 支持选择性部署（仅后端/仅前端/全部）
+    - 包含详细的错误提示和用户交互
+  - 项目可维护性显著提升
+    - 文档结构清晰（README + project_document/ 统一管理）
+    - 部署流程简化（从 10+ 步骤 → 1 行命令）
+    - 新手友好度提升（傻瓜式脚本 + 详细文档）
+
 - [2026-01-21] 修复管理员账号密码问题并完成端到端验证
   - backend/migrations/0000_initial_schema.sql - 更新默认管理员密码哈希
     - 将占位符 `$2a$10$YourHashedPasswordHere` 替换为真实的 bcrypt 哈希

@@ -17,9 +17,19 @@ type Bindings = {
 };
 
 /**
+ * Context Variables 类型定义（用于中间件传递数据）
+ */
+type Variables = {
+  user: {
+    userId: number;
+    username: string;
+  };
+};
+
+/**
  * 认证路由模块
  */
-const auth = new Hono<{ Bindings: Bindings }>();
+const auth = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 /**
  * 登录请求验证 Schema
@@ -158,15 +168,20 @@ auth.post('/register', zValidator('json', registerSchema), async (c) => {
     // 加密密码
     const hashedPassword = await hashPassword(password);
 
-    // 创建用户
-    const result = await db.insert(users).values({
-      username,
-      password: hashedPassword,
-      email,
-    });
+    // 创建用户（使用 .returning() 获取插入的 ID）
+    const result = await db
+      .insert(users)
+      .values({
+        username,
+        password: hashedPassword,
+        email,
+      })
+      .returning({ id: users.id, username: users.username, email: users.email });
+
+    const newUser = result[0];
 
     // 生成 Token（从环境变量获取密钥）
-    const token = generateToken(result.lastInsertRowid as number, username, c.env.JWT_SECRET);
+    const token = generateToken(newUser.id, username, c.env.JWT_SECRET);
 
     return c.json(
       {
@@ -174,11 +189,7 @@ auth.post('/register', zValidator('json', registerSchema), async (c) => {
         message: '注册成功',
         data: {
           token,
-          user: {
-            id: result.lastInsertRowid,
-            username,
-            email,
-          },
+          user: newUser,
         },
       },
       201

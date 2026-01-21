@@ -26,11 +26,11 @@ describe('认证中间件', () => {
    * authMiddleware 功能测试（强制认证）
    */
   describe('authMiddleware', () => {
-    let app: Hono;
+    let app: Hono<{ Bindings: { JWT_SECRET: string } }>;
 
     beforeEach(() => {
-      // 每个测试前创建新的 Hono 实例
-      app = new Hono();
+      // 每个测试前创建新的 Hono 实例（配置JWT_SECRET binding）
+      app = new Hono<{ Bindings: { JWT_SECRET: string } }>();
 
       // 添加认证中间件保护的测试路由
       app.get('/protected', authMiddleware, (c) => {
@@ -46,12 +46,14 @@ describe('认证中间件', () => {
     it('应允许携带有效 Token 的请求通过', async () => {
       const userId = 1;
       const username = 'testuser';
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, 'test-jwt-secret-key-for-vitest');
 
       const response = await app.request('/protected', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
 
       expect(response.status).toBe(200);
@@ -104,7 +106,7 @@ describe('认证中间件', () => {
     });
 
     it('应拒绝篡改过的 Token', async () => {
-      const token = generateToken(1, 'test');
+      const token = generateToken(1, 'test', 'test-jwt-secret-key-for-vitest');
       const tamperedToken = token.slice(0, -1) + 'X';
 
       const response = await app.request('/protected', {
@@ -123,12 +125,14 @@ describe('认证中间件', () => {
     it('应支持不带 Bearer 前缀的 Token', async () => {
       const userId = 2;
       const username = 'directuser';
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, 'test-jwt-secret-key-for-vitest');
 
       const response = await app.request('/protected', {
         headers: {
           Authorization: token, // 直接传 Token
         },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
 
       expect(response.status).toBe(200);
@@ -144,12 +148,14 @@ describe('认证中间件', () => {
     it('应正确提取和注入用户信息到 Context', async () => {
       const userId = 42;
       const username = 'johndoe';
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, 'test-jwt-secret-key-for-vitest');
 
       const response = await app.request('/protected', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
 
       const data = await response.json();
@@ -174,7 +180,7 @@ describe('认证中间件', () => {
     });
 
     it('应处理大小写敏感的 Bearer 前缀', async () => {
-      const token = generateToken(1, 'test');
+      const token = generateToken(1, 'test', 'test-jwt-secret-key-for-vitest');
 
       const response = await app.request('/protected', {
         headers: {
@@ -192,12 +198,14 @@ describe('认证中间件', () => {
 
     it('应支持特殊字符用户名的 Token', async () => {
       const username = 'user@example.com';
-      const token = generateToken(1, username);
+      const token = generateToken(1, username, 'test-jwt-secret-key-for-vitest');
 
       const response = await app.request('/protected', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
 
       expect(response.status).toBe(200);
@@ -208,12 +216,14 @@ describe('认证中间件', () => {
 
     it('应支持中文用户名的 Token', async () => {
       const username = '测试用户';
-      const token = generateToken(1, username);
+      const token = generateToken(1, username, 'test-jwt-secret-key-for-vitest');
 
       const response = await app.request('/protected', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
 
       expect(response.status).toBe(200);
@@ -227,10 +237,10 @@ describe('认证中间件', () => {
    * optionalAuthMiddleware 功能测试（可选认证）
    */
   describe('optionalAuthMiddleware', () => {
-    let app: Hono;
+    let app: Hono<{ Bindings: { JWT_SECRET: string } }>;
 
     beforeEach(() => {
-      app = new Hono();
+      app = new Hono<{ Bindings: { JWT_SECRET: string } }>();
 
       // 添加可选认证的测试路由
       app.get('/optional', optionalAuthMiddleware, (c) => {
@@ -247,12 +257,14 @@ describe('认证中间件', () => {
     it('应允许携带有效 Token 的请求通过并注入用户信息', async () => {
       const userId = 1;
       const username = 'testuser';
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, 'test-jwt-secret-key-for-vitest');
 
       const response = await app.request('/optional', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
 
       expect(response.status).toBe(200);
@@ -293,7 +305,7 @@ describe('认证中间件', () => {
     });
 
     it('应忽略篡改过的 Token 并继续执行', async () => {
-      const token = generateToken(1, 'test');
+      const token = generateToken(1, 'test', 'test-jwt-secret-key-for-vitest');
       const tamperedToken = token.slice(0, -1) + 'X';
 
       const response = await app.request('/optional', {
@@ -312,12 +324,14 @@ describe('认证中间件', () => {
     it('应支持不带 Bearer 前缀的 Token', async () => {
       const userId = 3;
       const username = 'optionaluser';
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, 'test-jwt-secret-key-for-vitest');
 
       const response = await app.request('/optional', {
         headers: {
           Authorization: token,
         },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
 
       expect(response.status).toBe(200);
@@ -362,13 +376,15 @@ describe('认证中间件', () => {
     });
 
     it('应区分认证和未认证状态', async () => {
-      const token = generateToken(5, 'authenticateduser');
+      const token = generateToken(5, 'authenticateduser', 'test-jwt-secret-key-for-vitest');
 
       // 认证请求
       const authResponse = await app.request('/optional', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
 
       const authData = await authResponse.json();
@@ -389,10 +405,10 @@ describe('认证中间件', () => {
    * 集成测试: 认证中间件在多路由场景中的行为
    */
   describe('认证中间件集成测试', () => {
-    let app: Hono;
+    let app: Hono<{ Bindings: { JWT_SECRET: string } }>;
 
     beforeEach(() => {
-      app = new Hono();
+      app = new Hono<{ Bindings: { JWT_SECRET: string } }>();
 
       // 公开路由（无认证）
       app.get('/public', (c) => {
@@ -415,7 +431,7 @@ describe('认证中间件', () => {
     });
 
     it('应正确处理不同认证级别的路由', async () => {
-      const token = generateToken(1, 'test');
+      const token = generateToken(1, 'test', 'test-jwt-secret-key-for-vitest');
 
       // 公开路由应该总是成功
       const publicResponse = await app.request('/public');
@@ -424,6 +440,8 @@ describe('认证中间件', () => {
       // 可选认证路由应该在有/无 Token 时都成功
       const optionalWithToken = await app.request('/optional', {
         headers: { Authorization: `Bearer ${token}` },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
       expect(optionalWithToken.status).toBe(200);
 
@@ -433,6 +451,8 @@ describe('认证中间件', () => {
       // 强制认证路由只有在有 Token 时成功
       const protectedWithToken = await app.request('/protected', {
         headers: { Authorization: `Bearer ${token}` },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
       expect(protectedWithToken.status).toBe(200);
 
@@ -457,11 +477,13 @@ describe('认证中间件', () => {
         }
       );
 
-      const token = generateToken(10, 'multiuser');
+      const token = generateToken(10, 'multiuser', 'test-jwt-secret-key-for-vitest');
       const response = await app.request('/multi-middleware', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      }, {
+        JWT_SECRET: 'test-jwt-secret-key-for-vitest',
       });
 
       expect(response.status).toBe(200);

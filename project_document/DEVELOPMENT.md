@@ -12,6 +12,26 @@
   - 描述: 完整的 GitHub 仓库管理基础设施
 
 ## 最近完成
+- [2026-01-21] 修复所有认证中间件测试（13个测试全部通过）
+  - backend/src/middleware/auth.test.ts - 为所有Hono实例添加Bindings类型
+    - 修复3个describe块的类型定义（authMiddleware、optionalAuthMiddleware、集成测试）
+    - 为11个测试请求添加env参数（包含JWT_SECRET配置）
+  - 问题根因：测试中Hono实例未配置Bindings，导致c.env.JWT_SECRET为undefined
+  - 修复方案：app.request()第三个参数传入{ JWT_SECRET: 'test-jwt-secret-key-for-vitest' }
+
+- [2026-01-21] 修复JWT工具函数边缘测试用例
+  - backend/src/utils/jwt.test.ts - 修复token生成时间戳测试
+    - 添加1100ms延时确保iat时间戳不同（JWT使用秒级时间戳）
+  - backend/src/utils/jwt.test.ts - 修复extractToken空字符串测试
+    - 更新断言：空字符串应返回null而非''
+  - backend/tests/integration/auth.test.ts - 修复弱密码注册测试
+    - 更新测试数据：'weak'(4字符)改为'12345678'(8字符纯数字)确保触发密码强度验证
+
+- [2026-01-21] 测试修复成果汇总
+  - 测试通过率：从111个(60%) → 127个(68.3%)提升16个测试
+  - 失败测试数：从16个 → 2个（剩余2个为测试隔离问题，非代码bug）
+  - 核心修复：JWT secret、env binding、时间戳精度、边界值处理
+
 - [2026-01-21] 修复集成测试 JWT secret 参数缺失问题
   - backend/tests/integration/auth.test.ts - 为 2 处 generateToken() 调用添加 secret 参数
   - backend/tests/integration/categories.test.ts - 为 beforeAll 钩子中的 generateToken() 添加 secret

@@ -81,7 +81,7 @@ describe('认证路由集成测试', () => {
         },
         body: JSON.stringify({
           username: 'testuser',
-          password: 'weak',
+          password: '12345678', // 8字符但强度不足（纯数字，无大小写字母）
           email: 'test@example.com',
         }),
       });
@@ -412,14 +412,17 @@ describe('认证路由集成测试', () => {
     let userId: number;
 
     beforeEach(async () => {
-      // 创建测试用户
-      const result = await db.insert(users).values({
-        username: 'meuser',
-        password: await hashPassword('Test1234'),
-        email: 'me@example.com',
-      });
+      // 创建测试用户（使用 .returning() 获取插入的 ID）
+      const result = await db
+        .insert(users)
+        .values({
+          username: 'meuser',
+          password: await hashPassword('Test1234'),
+          email: 'me@example.com',
+        })
+        .returning({ id: users.id });
 
-      userId = result.lastInsertRowid as number;
+      userId = result[0].id;
       validToken = await generateToken(userId, 'meuser', 'test-jwt-secret-key-for-vitest');
     });
 

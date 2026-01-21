@@ -373,6 +373,50 @@ export const useThemeStore = create<ThemeStore>()(
 )
 ```
 
+### Hono 测试环境配置模式
+
+#### 配置 Bindings 类型和 env 参数
+```typescript
+import { Hono } from 'hono';
+import { authMiddleware } from '@/middleware/auth';
+import { generateToken } from '@/utils/jwt';
+
+// 1. 为 Hono 实例添加 Bindings 类型（确保 c.env 类型安全）
+let app: Hono<{ Bindings: { JWT_SECRET: string } }>;
+
+beforeEach(() => {
+  // 创建带类型的 Hono 实例
+  app = new Hono<{ Bindings: { JWT_SECRET: string } }>();
+
+  // 添加需要认证的路由
+  app.get('/protected', authMiddleware, (c) => {
+    const user = c.get('user');
+    return c.json({ success: true, user });
+  });
+});
+
+// 2. 测试时通过第三个参数传递 env（关键！）
+it('应允许携带有效 Token 的请求通过', async () => {
+  const token = generateToken(1, 'test', 'test-jwt-secret-key-for-vitest');
+
+  const response = await app.request('/protected', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }, {
+    JWT_SECRET: 'test-jwt-secret-key-for-vitest',  // ← 第三个参数传递 env
+  });
+
+  expect(response.status).toBe(200);
+});
+```
+
+**要点**:
+- **Workers 环境差异**: Cloudflare Workers 通过 `c.env` 访问环境变量，而非 `process.env`
+- **测试必备**: Hono 测试必须在 `app.request()` 第三个参数传递 env 对象
+- **类型安全**: Bindings 类型确保 TypeScript 编译时检查 env 属性
+- **测试隔离**: 每个 describe 块创建新的 Hono 实例，避免测试间状态污染
+
 ---
 
 ## ❓ 常见问题

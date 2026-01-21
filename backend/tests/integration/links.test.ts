@@ -33,14 +33,17 @@ describe('链接路由集成测试', () => {
     // 初始化数据库连接
     db = drizzle(env.DB);
 
-    // 创建测试用户
-    const userResult = await db.insert(users).values({
-      username: 'testadmin',
-      password: await hashPassword('Test1234'),
-      email: 'admin@example.com',
-    });
+    // 创建测试用户（使用 .returning() 获取 ID）
+    const userResult = await db
+      .insert(users)
+      .values({
+        username: 'testadmin',
+        password: await hashPassword('Test1234'),
+        email: 'admin@example.com',
+      })
+      .returning({ id: users.id });
 
-    userId = userResult.lastInsertRowid as number;
+    userId = userResult[0].id;
     authToken = await generateToken(userId, 'testadmin', 'test-jwt-secret-key-for-vitest');
   });
 
@@ -49,15 +52,18 @@ describe('链接路由集成测试', () => {
     await db.delete(links);
     await db.delete(categories);
 
-    // 创建测试分类
-    const categoryResult = await db.insert(categories).values({
-      name: '测试分类',
-      description: '用于测试的分类',
-      sortOrder: 1,
-      isVisible: true,
-    });
+    // 创建测试分类（使用 .returning() 获取 ID）
+    const categoryResult = await db
+      .insert(categories)
+      .values({
+        name: '测试分类',
+        description: '用于测试的分类',
+        sortOrder: 1,
+        isVisible: true,
+      })
+      .returning({ id: categories.id });
 
-    categoryId = categoryResult.lastInsertRowid as number;
+    categoryId = categoryResult[0].id;
   });
 
   afterAll(async () => {

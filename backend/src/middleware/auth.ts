@@ -10,22 +10,21 @@ type Bindings = {
 };
 
 /**
- * 扩展 Hono Context 类型，添加用户信息和环境变量
+ * Context Variables 类型定义
  */
-export interface AuthContext extends Context {
-  env: Bindings;
-  user?: {
+type Variables = {
+  user: {
     userId: number;
     username: string;
   };
-}
+};
 
 /**
  * JWT 认证中间件
  * 验证请求的 Authorization Header 中的 Token
  * 验证成功后将用户信息注入到 context 中
  */
-export async function authMiddleware(c: AuthContext, next: Next) {
+export async function authMiddleware(c: Context<{ Bindings: Bindings; Variables: Variables }>, next: Next) {
   try {
     // 提取 Authorization Header
     const authHeader = c.req.header('Authorization');
@@ -71,7 +70,7 @@ export async function authMiddleware(c: AuthContext, next: Next) {
  * 如果提供了 Token 则验证，但不强制要求
  * 用于某些需要区分登录/未登录状态的接口
  */
-export async function optionalAuthMiddleware(c: AuthContext, next: Next) {
+export async function optionalAuthMiddleware(c: Context<{ Bindings: Bindings; Variables: Variables }>, next: Next) {
   try {
     const authHeader = c.req.header('Authorization');
     const token = extractToken(authHeader);

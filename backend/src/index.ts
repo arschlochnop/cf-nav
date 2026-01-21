@@ -16,9 +16,19 @@ type Bindings = {
 };
 
 /**
+ * Context Variables 类型定义（用于中间件传递数据）
+ */
+type Variables = {
+  user?: {
+    userId: number;
+    username: string;
+  };
+};
+
+/**
  * 创建 Hono 应用实例
  */
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 /**
  * 全局中间件配置

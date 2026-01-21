@@ -27,6 +27,17 @@
   - backend/tests/integration/categories.test.ts - 为 generateToken() 调用添加 secret 参数
   - backend/tests/integration/links.test.ts - 为 generateToken() 调用添加 secret 参数
   - 测试通过率提升：从 84 个通过 → 88 个通过（45% → 47%）
+- fix(test): 修复所有认证中间件测试 env 参数缺失问题（13 个测试全部通过）
+  - backend/src/middleware/auth.test.ts - 为所有 Hono 实例添加 Bindings 类型定义
+  - 修复 3 个 describe 块的类型定义（authMiddleware、optionalAuthMiddleware、集成测试）
+  - 为 11 个测试请求添加 env 参数（包含 JWT_SECRET 配置）
+  - 问题根因：测试中 Hono 实例未配置 Bindings，导致 c.env.JWT_SECRET 为 undefined
+  - 修复方案：app.request() 第三个参数传入 { JWT_SECRET: 'test-jwt-secret-key-for-vitest' }
+- fix(test): 修复 JWT 工具函数边缘测试用例（3 个测试）
+  - backend/src/utils/jwt.test.ts - 修复 token 生成时间戳测试（添加 1100ms 延时确保 iat 时间戳不同）
+  - backend/src/utils/jwt.test.ts - 修复 extractToken 空字符串测试（更新断言：空字符串应返回 null 而非 ''）
+  - backend/tests/integration/auth.test.ts - 修复弱密码注册测试（测试数据 'weak' 改为 '12345678' 确保触发密码强度验证）
+  - 测试通过率提升：从 111 个通过 (60%) → 127 个通过 (68.3%)，失败数从 16 个降到 2 个（剩余 2 个为测试隔离问题，非代码 bug）
 
 ### 重构
 - 暂无

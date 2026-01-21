@@ -130,25 +130,25 @@ linksRouter.post('/', authMiddleware, zValidator('json', linkSchema), async (c) 
       );
     }
 
-    // 创建链接
-    const result = await db.insert(links).values({
-      categoryId: data.categoryId,
-      title: data.title,
-      url: data.url,
-      description: data.description,
-      icon: data.icon,
-      sortOrder: data.sortOrder ?? 0,
-      isVisible: data.isVisible ?? true,
-    });
+    // 创建链接（使用 .returning() 获取插入的链接信息）
+    const result = await db
+      .insert(links)
+      .values({
+        categoryId: data.categoryId,
+        title: data.title,
+        url: data.url,
+        description: data.description,
+        icon: data.icon,
+        sortOrder: data.sortOrder ?? 0,
+        isVisible: data.isVisible ?? true,
+      })
+      .returning();
 
     return c.json(
       {
         success: true,
         message: '链接创建成功',
-        data: {
-          id: result.lastInsertRowid,
-          ...data,
-        },
+        data: result[0],
       },
       201
     );

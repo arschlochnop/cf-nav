@@ -31,14 +31,17 @@ describe('分类路由集成测试', () => {
     // 初始化数据库连接
     db = drizzle(env.DB);
 
-    // 创建测试用户并生成 Token
-    const userResult = await db.insert(users).values({
-      username: 'testadmin',
-      password: await hashPassword('Test1234'),
-      email: 'admin@example.com',
-    });
+    // 创建测试用户并生成 Token（使用 .returning() 获取 ID）
+    const userResult = await db
+      .insert(users)
+      .values({
+        username: 'testadmin',
+        password: await hashPassword('Test1234'),
+        email: 'admin@example.com',
+      })
+      .returning({ id: users.id });
 
-    userId = userResult.lastInsertRowid as number;
+    userId = userResult[0].id;
     authToken = await generateToken(userId, 'testadmin', 'test-jwt-secret-key-for-vitest');
   });
 

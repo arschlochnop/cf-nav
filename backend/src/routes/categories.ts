@@ -90,22 +90,23 @@ categoriesRouter.post('/', authMiddleware, zValidator('json', categorySchema), a
     const data = c.req.valid('json');
     const db = drizzle(c.env.DB);
 
-    const result = await db.insert(categories).values({
-      name: data.name,
-      description: data.description,
-      icon: data.icon,
-      sortOrder: data.sortOrder ?? 0,
-      isVisible: data.isVisible ?? true,
-    });
+    // 使用 .returning() 获取插入的分类信息
+    const result = await db
+      .insert(categories)
+      .values({
+        name: data.name,
+        description: data.description,
+        icon: data.icon,
+        sortOrder: data.sortOrder ?? 0,
+        isVisible: data.isVisible ?? true,
+      })
+      .returning();
 
     return c.json(
       {
         success: true,
         message: '分类创建成功',
-        data: {
-          id: result.lastInsertRowid,
-          ...data,
-        },
+        data: result[0],
       },
       201
     );

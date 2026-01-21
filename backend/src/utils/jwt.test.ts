@@ -38,7 +38,7 @@ describe('JWT 工具函数', () => {
       const userId = 1;
       const username = 'testuser';
 
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, TEST_JWT_SECRET);
 
       // 验证 Token 存在且为字符串
       expect(token).toBeDefined();
@@ -50,7 +50,7 @@ describe('JWT 工具函数', () => {
       const userId = 42;
       const username = 'johndoe';
 
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, TEST_JWT_SECRET);
 
       // 手动解码验证（不验证签名）
       const decoded = jwt.decode(token) as JWTPayload;
@@ -61,7 +61,7 @@ describe('JWT 工具函数', () => {
     });
 
     it('生成的 Token 应包含过期时间 (exp)', () => {
-      const token = generateToken(1, 'test');
+      const token = generateToken(1, 'test', TEST_JWT_SECRET);
 
       const decoded = jwt.decode(token) as JWTPayload;
 
@@ -70,7 +70,7 @@ describe('JWT 工具函数', () => {
     });
 
     it('生成的 Token 应包含签发时间 (iat)', () => {
-      const token = generateToken(1, 'test');
+      const token = generateToken(1, 'test', TEST_JWT_SECRET);
 
       const decoded = jwt.decode(token) as JWTPayload;
 
@@ -78,13 +78,14 @@ describe('JWT 工具函数', () => {
       expect(decoded.iat).toBeLessThanOrEqual(Date.now() / 1000); // 过去或当前时间
     });
 
-    it('不同调用应生成不同的 Token (因为 iat 不同)', () => {
+    it('不同调用应生成不同的 Token (因为 iat 不同)', async () => {
       const userId = 1;
       const username = 'test';
 
-      const token1 = generateToken(userId, username);
-      // 等待 1ms 确保时间戳不同
-      const token2 = generateToken(userId, username);
+      const token1 = generateToken(userId, username, TEST_JWT_SECRET);
+      // JWT iat是秒级时间戳，需要等待至少1秒才能让iat不同
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      const token2 = generateToken(userId, username, TEST_JWT_SECRET);
 
       // Token 应该不同（因为 iat 不同）
       expect(token1).not.toBe(token2);
@@ -92,7 +93,7 @@ describe('JWT 工具函数', () => {
 
     it('应支持特殊字符的用户名', () => {
       const username = 'user@test.com';
-      const token = generateToken(1, username);
+      const token = generateToken(1, username, TEST_JWT_SECRET);
 
       const decoded = jwt.decode(token) as JWTPayload;
       expect(decoded.username).toBe(username);
@@ -100,7 +101,7 @@ describe('JWT 工具函数', () => {
 
     it('应支持中文用户名', () => {
       const username = '测试用户';
-      const token = generateToken(1, username);
+      const token = generateToken(1, username, TEST_JWT_SECRET);
 
       const decoded = jwt.decode(token) as JWTPayload;
       expect(decoded.username).toBe(username);
@@ -108,7 +109,7 @@ describe('JWT 工具函数', () => {
 
     it('应支持大用户 ID', () => {
       const userId = 999999999;
-      const token = generateToken(userId, 'test');
+      const token = generateToken(userId, 'test', TEST_JWT_SECRET);
 
       const decoded = jwt.decode(token) as JWTPayload;
       expect(decoded.userId).toBe(userId);
@@ -122,9 +123,9 @@ describe('JWT 工具函数', () => {
     it('应成功验证有效的 Token', () => {
       const userId = 1;
       const username = 'testuser';
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, TEST_JWT_SECRET);
 
-      const payload = verifyToken(token);
+      const payload = verifyToken(token, TEST_JWT_SECRET);
 
       expect(payload).toBeDefined();
       expect(payload.userId).toBe(userId);
@@ -132,22 +133,22 @@ describe('JWT 工具函数', () => {
     });
 
     it('应拒绝篡改过的 Token', () => {
-      const token = generateToken(1, 'test');
+      const token = generateToken(1, 'test', TEST_JWT_SECRET);
 
       // 篡改 Token（修改最后一个字符）
       const tamperedToken = token.slice(0, -1) + 'X';
 
-      expect(() => verifyToken(tamperedToken)).toThrow('Token 无效');
+      expect(() => verifyToken(tamperedToken, TEST_JWT_SECRET)).toThrow('Token 无效');
     });
 
     it('应拒绝格式错误的 Token', () => {
       const invalidToken = 'not.a.valid.jwt.token';
 
-      expect(() => verifyToken(invalidToken)).toThrow('Token 无效');
+      expect(() => verifyToken(invalidToken, TEST_JWT_SECRET)).toThrow('Token 无效');
     });
 
     it('应拒绝空 Token', () => {
-      expect(() => verifyToken('')).toThrow();
+      expect(() => verifyToken('', TEST_JWT_SECRET)).toThrow();
     });
 
     it('应拒绝使用错误密钥签名的 Token', () => {
@@ -158,7 +159,7 @@ describe('JWT 工具函数', () => {
         { expiresIn: '7d' }
       );
 
-      expect(() => verifyToken(wrongSecretToken)).toThrow('Token 无效');
+      expect(() => verifyToken(wrongSecretToken, TEST_JWT_SECRET)).toThrow('Token 无效');
     });
 
     it('应拒绝已过期的 Token', () => {
@@ -169,15 +170,15 @@ describe('JWT 工具函数', () => {
         { expiresIn: '-1s' }
       );
 
-      expect(() => verifyToken(expiredToken)).toThrow('Token 已过期');
+      expect(() => verifyToken(expiredToken, TEST_JWT_SECRET)).toThrow('Token 已过期');
     });
 
     it('应正确返回 Payload 中的所有字段', () => {
       const userId = 42;
       const username = 'johndoe';
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, TEST_JWT_SECRET);
 
-      const payload = verifyToken(token);
+      const payload = verifyToken(token, TEST_JWT_SECRET);
 
       expect(payload.userId).toBe(userId);
       expect(payload.username).toBe(username);
@@ -187,17 +188,17 @@ describe('JWT 工具函数', () => {
 
     it('应支持验证特殊字符用户名的 Token', () => {
       const username = 'user@example.com';
-      const token = generateToken(1, username);
+      const token = generateToken(1, username, TEST_JWT_SECRET);
 
-      const payload = verifyToken(token);
+      const payload = verifyToken(token, TEST_JWT_SECRET);
       expect(payload.username).toBe(username);
     });
 
     it('应支持验证中文用户名的 Token', () => {
       const username = '测试用户';
-      const token = generateToken(1, username);
+      const token = generateToken(1, username, TEST_JWT_SECRET);
 
-      const payload = verifyToken(token);
+      const payload = verifyToken(token, TEST_JWT_SECRET);
       expect(payload.username).toBe(username);
     });
   });
@@ -232,8 +233,8 @@ describe('JWT 工具函数', () => {
     it('应处理空字符串 Header', () => {
       const extracted = extractToken('');
 
-      // 空字符串作为整个 Token 返回（兼容性处理）
-      expect(extracted).toBe('');
+      // 空字符串等同于 undefined，返回 null
+      expect(extracted).toBeNull();
     });
 
     it('应处理格式错误的 Bearer Header (只有 Bearer)', () => {
@@ -295,7 +296,7 @@ describe('JWT 工具函数', () => {
       const username = 'integration-test-user';
 
       // 1. 生成 Token
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, TEST_JWT_SECRET);
       expect(token).toBeDefined();
 
       // 2. 模拟 HTTP Authorization Header
@@ -306,13 +307,13 @@ describe('JWT 工具函数', () => {
       expect(extracted).toBe(token);
 
       // 4. 验证 Token
-      const payload = verifyToken(extracted!);
+      const payload = verifyToken(extracted!, TEST_JWT_SECRET);
       expect(payload.userId).toBe(userId);
       expect(payload.username).toBe(username);
     });
 
     it('应拒绝完整流程中篡改的 Token', () => {
-      const token = generateToken(1, 'test');
+      const token = generateToken(1, 'test', TEST_JWT_SECRET);
       const authHeader = `Bearer ${token}`;
 
       // 提取并篡改
@@ -320,7 +321,7 @@ describe('JWT 工具函数', () => {
       const tampered = extracted!.slice(0, -1) + 'X';
 
       // 验证应失败
-      expect(() => verifyToken(tampered)).toThrow('Token 无效');
+      expect(() => verifyToken(tampered, TEST_JWT_SECRET)).toThrow('Token 无效');
     });
 
     it('应处理没有 Bearer 前缀的直接 Token', () => {
@@ -328,14 +329,14 @@ describe('JWT 工具函数', () => {
       const username = 'direct-token-user';
 
       // 生成 Token
-      const token = generateToken(userId, username);
+      const token = generateToken(userId, username, TEST_JWT_SECRET);
 
       // 直接提取（无 Bearer）
       const extracted = extractToken(token);
       expect(extracted).toBe(token);
 
       // 验证
-      const payload = verifyToken(extracted!);
+      const payload = verifyToken(extracted!, TEST_JWT_SECRET);
       expect(payload.userId).toBe(userId);
       expect(payload.username).toBe(username);
     });

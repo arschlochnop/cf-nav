@@ -23,19 +23,23 @@ export interface JWTPayload {
 
 /**
  * 生成 JWT Token
- * @param userId 用户 ID
+ * @param userId 用户 ID（支持 number 或 bigint，会自动转换为 number）
  * @param username 用户名
  * @param secret JWT 密钥（来自环境变量）
  * @returns JWT Token 字符串
  */
-export function generateToken(userId: number, username: string, secret: string): string {
+export function generateToken(userId: number | bigint, username: string, secret: string): string {
   if (!secret) {
     throw new Error('JWT_SECRET 未设置！请在环境变量中配置');
   }
 
   try {
+    // 重要：D1 的 lastInsertRowid 返回 bigint，需要转换为 number
+    // JSON.stringify（jwt.sign 内部使用）不支持 bigint 类型
+    const userIdNumber = typeof userId === 'bigint' ? Number(userId) : userId;
+
     const payload: JWTPayload = {
-      userId,
+      userId: userIdNumber,
       username,
     };
 

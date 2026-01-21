@@ -18,7 +18,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "uv run .claude/status_lines/status_line.py",
+    "command": "uv run /Users/dm/data/share/code/cf-nav/Claude-Code-Multi-Agent/.claude/status_lines/status_line.py",
     "padding": 0
   },
   "hooks": {
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/session_start.py"
+            "command": "uv run /Users/dm/data/share/code/cf-nav/Claude-Code-Multi-Agent/.claude/hooks/session_start.py"
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/user_prompt_submit.py"
+            "command": "uv run /Users/dm/data/share/code/cf-nav/Claude-Code-Multi-Agent/.claude/hooks/user_prompt_submit.py"
           }
         ]
       }
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/pre_tool_use.py"
+            "command": "uv run /Users/dm/data/share/code/cf-nav/Claude-Code-Multi-Agent/.claude/hooks/pre_tool_use.py"
           }
         ]
       }
@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/post_tool_use.py"
+            "command": "uv run /Users/dm/data/share/code/cf-nav/Claude-Code-Multi-Agent/.claude/hooks/post_tool_use.py"
           }
         ]
       }
@@ -72,7 +72,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/notification.py"
+            "command": "uv run /Users/dm/data/share/code/cf-nav/Claude-Code-Multi-Agent/.claude/hooks/notification.py"
           }
         ]
       }
@@ -83,7 +83,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/stop.py"
+            "command": "uv run /Users/dm/data/share/code/cf-nav/Claude-Code-Multi-Agent/.claude/hooks/stop.py"
           }
         ]
       }
@@ -94,7 +94,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/subagent_stop.py"
+            "command": "uv run /Users/dm/data/share/code/cf-nav/Claude-Code-Multi-Agent/.claude/hooks/subagent_stop.py"
           }
         ]
       }
@@ -105,7 +105,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/pre_compact.py"
+            "command": "uv run /Users/dm/data/share/code/cf-nav/Claude-Code-Multi-Agent/.claude/hooks/pre_compact.py"
           }
         ]
       }

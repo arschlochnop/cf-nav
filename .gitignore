@@ -52,3 +52,8 @@ coverage/
 .nyc_output/
 playwright-report/
 test-results/
+# 操作哈希缓存文件（自动生成）
+**/.operation_hashes.json
+
+# 子目录中的 project_document（避免重复）
+**/project_document/

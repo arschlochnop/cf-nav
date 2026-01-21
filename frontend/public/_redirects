@@ -1,1 +1,2 @@
+/api/* https://cf-nav-backend.kind-me7262.workers.dev/api/:splat 200
 /* /index.html 200

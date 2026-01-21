@@ -205,8 +205,9 @@ export const MonitorStatusPage: React.FC = () => {
   } = useQuery<MonitorStatusResponse>({
     queryKey: ['monitorStatus'],
     queryFn: async () => {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787';
-      const response = await fetch(`${API_BASE_URL}/api/monitor/status`);
+      // 使用环境变量配置 API 地址，生产环境通过 VITE_API_BASE_URL 设置
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://cf-nav-backend.kind-me7262.workers.dev/api';
+      const response = await fetch(`${API_BASE_URL}/monitor/status`);
 
       if (!response.ok) {
         throw new Error('获取监控状态失败');

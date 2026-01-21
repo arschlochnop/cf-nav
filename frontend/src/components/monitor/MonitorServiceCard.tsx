@@ -1,5 +1,6 @@
 import React from 'react';
 import { UptimeTimeline } from './UptimeTimeline';
+import { Activity, Wrench, Heart, Check, X } from 'lucide-react';
 
 /**
  * 监控服务数据接口（与后端 API 响应格式一致）
@@ -7,13 +8,18 @@ import { UptimeTimeline } from './UptimeTimeline';
 interface MonitorService {
   id: number;
   name: string; // 服务名称（不包含 URL，隐私保护）
-  uptimePercentage: number; // 在线率（0-100，保留 1 位小数）
+  uptimePercentage: number; // 在线率（0-100，保留 1 位小数，基于最近45次）
+  uptime24h: number; // 最近 24 小时在线率（0-100）
+  uptime30d: number; // 最近 30 天在线率（0-100）
+  avgResponseTime: number; // 平均响应时间（毫秒）
+  lastResponseTime: number | null; // 最后一次响应时间（毫秒）
   currentStatus: 'up' | 'down' | 'slow' | 'unknown';
   timeline: Array<{
     timestamp: number; // Unix timestamp（秒）
     status: 'up' | 'down' | 'slow';
     responseTime: number; // 响应时间（毫秒）
   }>;
+  lastCheckedAt: number | null; // 最后检测时间（Unix timestamp 秒），无检测记录时为 null
 }
 
 /**
@@ -25,147 +31,108 @@ interface MonitorServiceCardProps {
 }
 
 /**
- * 根据在线率返回徽章颜色类名
+ * 根据当前状态返回状态图标组件
  *
- * 颜色规则（老王我定的标准）：
- * - >=99.5%: 深绿色（优秀）
- * - >=95.0%: 浅绿色（良好）
- * - >=90.0%: 黄色（警告）
- * - <90.0%: 红色（危险）
- *
- * @param percentage 在线率（0-100）
- * @returns Tailwind CSS 背景颜色类名
+ * @param status 当前状态
+ * @returns 状态图标（绿色✓ 或 红色✗）
  */
-function getUptimeBadgeColor(percentage: number): string {
-  if (percentage >= 99.5) {
-    return 'bg-green-500 text-white'; // 优秀 - 深绿色
-  } else if (percentage >= 95.0) {
-    return 'bg-lime-500 text-white'; // 良好 - 浅绿色
-  } else if (percentage >= 90.0) {
-    return 'bg-yellow-500 text-black'; // 警告 - 黄色（黑色文字提高对比度）
+function getStatusIcon(status: string) {
+  if (status === 'up') {
+    return <Check className="w-6 h-6 text-green-500" />;
+  } else if (status === 'down') {
+    return <X className="w-6 h-6 text-red-500" />;
+  } else if (status === 'slow') {
+    return <Check className="w-6 h-6 text-yellow-500" />; // 慢速也用勾号，但黄色
   } else {
-    return 'bg-red-500 text-white'; // 危险 - 红色
+    return <X className="w-6 h-6 text-gray-400" />; // 未知状态用灰色叉号
   }
 }
 
 /**
- * 根据当前状态返回状态指示器颜色
- *
- * @param status 当前状态
- * @returns Tailwind CSS 背景颜色类名
- */
-function getCurrentStatusColor(status: string): string {
-  switch (status) {
-    case 'up':
-      return 'bg-green-500'; // 在线 - 绿色
-    case 'down':
-      return 'bg-red-500'; // 离线 - 红色
-    case 'slow':
-      return 'bg-yellow-500'; // 慢速 - 黄色
-    default:
-      return 'bg-gray-400'; // 未知 - 灰色
-  }
-}
-
-/**
- * 根据当前状态返回中文文本
- *
- * @param status 当前状态
- * @returns 中文状态描述
- */
-function getCurrentStatusText(status: string): string {
-  switch (status) {
-    case 'up':
-      return '在线';
-    case 'down':
-      return '离线';
-    case 'slow':
-      return '响应慢';
-    default:
-      return '未知';
-  }
-}
-
-/**
- * MonitorServiceCard - 监控服务卡片组件
+ * MonitorServiceCard - 监控服务卡片组件（横向布局）
  *
  * 功能说明：
- * - 显示单个服务的监控信息（名称、在线率、时间轴）
- * - 白色背景，圆角，阴影，Hover 时放大效果
- * - 顶部：服务名称（左）+ 在线率徽章（右）
- * - 中部：当前状态指示器（小圆点 + 文字）
- * - 底部：嵌入 UptimeTimeline 时间轴组件
+ * - 横向布局显示监控服务信息（状态、名称、响应时间、在线率、时间轴）
+ * - 深色背景，圆角，阴影，Hover 时略微放大
+ * - 左侧：状态图标（✓/✗）+ 服务名称
+ * - 中左：Activity 图标 + 平均/最后响应时间
+ * - 中右：Wrench 图标 + 24h/30d 在线率
+ * - 右侧：Heart 图标 + 时间轴
  * - 使用 React.memo 优化性能，避免不必要的重渲染
  *
  * 设计规范：
- * - 卡片内边距：16px (p-4)
- * - 卡片圆角：8px (rounded-lg)
- * - 卡片阴影：md (shadow-md)
- * - Hover 效果：放大 102%，阴影加深 (shadow-lg)
+ * - 背景色：深紫灰色 (bg-gray-800)
+ * - 文字颜色：浅色 (text-gray-100, text-gray-300)
+ * - 内边距：16px (p-4)
+ * - 圆角：8px (rounded-lg)
+ * - 阴影：md (shadow-md)
+ * - Hover 效果：阴影加深 (shadow-lg)
  * - 过渡动画：300ms
- * - 徽章圆角：9999px (rounded-full)
- * - 徽章内边距：上下 4px，左右 12px (px-3 py-1)
- * - 徽章字体：加粗 (font-bold)
  */
 export const MonitorServiceCard = React.memo<MonitorServiceCardProps>(
   ({ service, isMobile = false }) => {
     return (
       <div
         className="
-          bg-white rounded-lg shadow-md p-4
-          transition-all duration-300 hover:scale-102 hover:shadow-lg
-          border border-gray-100
+          bg-gray-800 rounded-lg shadow-md p-4
+          transition-all duration-300 hover:shadow-lg
+          border border-gray-700
         "
         role="article"
         aria-label={`${service.name} 监控状态卡片`}
       >
-        {/* 顶部：服务名称 + 在线率徽章 */}
-        <div className="flex items-center justify-between mb-3">
-          {/* 服务名称（只显示名称，不显示 URL，老王我保护隐私） */}
-          <h3 className="text-lg font-semibold text-gray-800 truncate max-w-[60%]" title={service.name}>
-            {service.name}
-          </h3>
+        {/* 横向布局：所有元素在一行 */}
+        <div className="flex items-center justify-between gap-6">
+          {/* 左侧：状态图标 + 服务名称 */}
+          <div className="flex items-center gap-3 min-w-[200px]">
+            {/* 状态图标 */}
+            <div className="flex-shrink-0">
+              {getStatusIcon(service.currentStatus)}
+            </div>
 
-          {/* 在线率徽章（颜色根据百分比动态变化） */}
-          <span
-            className={`
-              px-3 py-1 rounded-full text-sm font-bold
-              ${getUptimeBadgeColor(service.uptimePercentage)}
-            `}
-            aria-label={`在线率 ${service.uptimePercentage} 百分点`}
-          >
-            {service.uptimePercentage.toFixed(1)}%
-          </span>
-        </div>
-
-        {/* 中部：当前状态指示器（小圆点 + 文字） */}
-        <div className="flex items-center mb-4">
-          {/* 状态指示器圆点（实时状态） */}
-          <span
-            className={`
-              w-3 h-3 rounded-full mr-2
-              ${getCurrentStatusColor(service.currentStatus)}
-            `}
-            aria-label={`当前状态: ${getCurrentStatusText(service.currentStatus)}`}
-          ></span>
-
-          {/* 状态文字 */}
-          <span className="text-sm text-gray-600">
-            {getCurrentStatusText(service.currentStatus)}
-          </span>
-        </div>
-
-        {/* 底部：时间轴组件（显示最近 45 次检测记录） */}
-        <div className="mt-4">
-          <UptimeTimeline timeline={service.timeline} isMobile={isMobile} />
-        </div>
-
-        {/* 时间轴说明文字（桌面端显示，移动端隐藏） */}
-        {!isMobile && (
-          <div className="mt-2 text-xs text-gray-400 text-right">
-            最近 45 次检测记录
+            {/* 服务名称 */}
+            <h3
+              className="text-lg font-semibold text-gray-100 truncate"
+              title={service.name}
+            >
+              {service.name}
+            </h3>
           </div>
-        )}
+
+          {/* 中左：Activity 图标 + 平均/最后响应时间 */}
+          <div className="flex items-center gap-2 min-w-[180px]">
+            <Activity className="w-5 h-5 text-blue-400 flex-shrink-0" />
+            <div className="text-sm text-gray-300">
+              <span className="font-medium">{service.avgResponseTime}ms</span>
+              <span className="text-gray-500 mx-1">(avg)</span>
+              <span className="mx-1">/</span>
+              <span className="font-medium">
+                {service.lastResponseTime !== null ? `${service.lastResponseTime}ms` : 'N/A'}
+              </span>
+              <span className="text-gray-500 mx-1">(last)</span>
+            </div>
+          </div>
+
+          {/* 中右：Wrench 图标 + 24h/30d 在线率 */}
+          <div className="flex items-center gap-2 min-w-[180px]">
+            <Wrench className="w-5 h-5 text-orange-400 flex-shrink-0" />
+            <div className="text-sm text-gray-300">
+              <span className="font-medium">{service.uptime24h.toFixed(2)}%</span>
+              <span className="text-gray-500 mx-1">(24h)</span>
+              <span className="mx-1">/</span>
+              <span className="font-medium">{service.uptime30d.toFixed(2)}%</span>
+              <span className="text-gray-500 mx-1">(30d)</span>
+            </div>
+          </div>
+
+          {/* 右侧：Heart 图标 + 时间轴 */}
+          <div className="flex items-center gap-3 flex-1">
+            <Heart className="w-5 h-5 text-pink-400 flex-shrink-0" />
+            <div className="flex-1">
+              <UptimeTimeline timeline={service.timeline} isMobile={isMobile} />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

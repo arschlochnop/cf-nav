@@ -27,6 +27,165 @@
     - [ ] 部署到 Cloudflare - 数据库迁移和应用部署
 
 ## 最近完成
+- [2026-01-21] 监控卡片横向布局重构（Uptime Kuma 风格）🎨
+  - 用户需求: 根据截图要求重构监控卡片为横向布局
+  - 后端API增强: backend/src/routes/monitor.ts
+    - 添加字段: uptime24h, uptime30d, avgResponseTime, lastResponseTime
+    - 实现24小时在线率计算（查询过去24小时检测记录）
+    - 实现30天在线率计算（查询过去30天检测记录）
+    - 实现平均响应时间计算（基于最近45次有效记录）
+    - 提取最后响应时间（timeline最后一条记录）
+  - 前端组件重构: frontend/src/components/monitor/MonitorServiceCard.tsx
+    - 完全重写为横向flexbox布局（4个区域）
+    - 左侧: 状态图标（Check绿✓/X红✗）+ 服务名称
+    - 中左: Activity图标 + "平均响应时间(avg) / 最后响应时间(last)"
+    - 中右: Wrench图标 + "24h在线率 / 30d在线率"
+    - 右侧: Heart图标 + 时间轴组件
+    - 深色主题: bg-gray-800背景，text-gray-100/300文字
+    - 图标颜色: Activity蓝色，Wrench橙色，Heart粉色
+  - 前端接口同步: frontend/src/pages/MonitorStatusPage.tsx
+    - MonitorService接口添加4个新字段
+  - 数据库查询优化: 3个并行SQL查询
+    - 最近45条记录（timeline + 基础在线率）
+    - 最近24小时记录（24h在线率）
+    - 最近30天记录（30d在线率）
+  - 用户确认: 保持5分钟监控频率（288条/天，8640条/30天，数据充足）
+  - 构建测试: TypeScript编译通过，无类型错误
+  - 技术细节:
+    - 在线率计算: Math.round((upCount / totalCount) * 1000) / 10（保留1位小数）
+    - 响应时间计算: 仅统计up和slow状态的记录（排除down）
+    - 时间戳过滤: WHERE checked_at >= ? (使用Unix timestamp秒)
+- [2026-01-21] 监控卡片移除"最近X次检测记录"说明文字 ✨
+  - 用户反馈："把最近 45 次检测记录 字符串 这个删掉 没意义"
+  - 文件修改: frontend/src/components/monitor/MonitorServiceCard.tsx (删除 168-172 行)
+  - 删除内容: 桌面端显示的"最近 {service.timeline.length} 次检测记录"文字
+  - 简化UI: 时间轴组件直接显示，不需要额外说明文字
+  - 用户体验改进: 界面更简洁，减少不必要的视觉信息
+- [2026-01-21] 监控卡片添加上一次检测时间显示 ✨
+  - 用户反馈："每个选项卡 添加一个 上一次的检测时间"
+  - 创建时间格式化工具: frontend/src/utils/timeFormat.ts (76 行)
+    - `formatLastUpdated()`: 将 Unix timestamp 转换为相对时间（刚刚/X秒前/X分钟前/X小时前/X天前）
+    - `formatLastChecked()`: 包装函数，处理 null 值和未来时间（时钟不同步）
+    - DRY 原则：避免 MonitorStatusPage 和 MonitorServiceCard 代码重复
+  - 后端 API 修改: backend/src/routes/monitor.ts (2 处修改)
+    - `MonitorService` 接口添加 `lastCheckedAt: number | null` 字段
+    - 从 timeline 数组提取最后检测时间: `timeline[timeline.length - 1].timestamp`
+  - MonitorServiceCard 修改: frontend/src/components/monitor/MonitorServiceCard.tsx (3 处修改)
+    - 导入 `formatLastChecked` 工具函数
+    - 接口同步添加 `lastCheckedAt` 字段
+    - 显示格式: "在线 • 5 分钟前"（状态 + 分隔符 + 相对时间）
+    - 移除硬编码文字: "最近 45 次检测记录" → "最近检测记录"
+  - MonitorStatusPage 修改: frontend/src/pages/MonitorStatusPage.tsx (3 处修改)
+    - 删除内联 `formatLastUpdated()` 函数（100-117 行）
+    - 导入工具函数: `import { formatLastUpdated } from '../utils/timeFormat'`
+    - 接口同步添加 `lastCheckedAt` 字段
+  - TypeScript 编译错误修复
+    - 错误: `Property 'lastCheckedAt' is missing in type 'MonitorService'`
+    - 根因: MonitorStatusPage.tsx 中的 MonitorService 接口未同步更新
+    - 修复: 添加 `lastCheckedAt: number | null` 字段
+  - 前端构建成功: 146.12 KB (gzip: 46.15 KB)
+  - 后端部署成功: Version 3573ae72-0042-4474-b7ae-bdd7299fda4b
+    - 包大小: 626.26 KiB (gzip: 118.74 KiB)
+    - 启动时间: 25 ms
+  - 用户体验提升: 每个服务卡片都能看到最后检测时间，更直观的状态反馈
+- [2026-01-21] 修复监控页面时间显示负数问题 🐛
+  - frontend/src/pages/MonitorStatusPage.tsx:100-117 - 修复 formatLastUpdated() 函数
+  - 问题表现：显示"-3 秒前"而不是正常时间
+  - 根因分析：Cloudflare Workers 服务器时间和客户端浏览器本地时间存在几秒偏差（正常的分布式系统时间同步问题）
+  - 修复方案：当时间差小于 5 秒（包括负数）时，显示"刚刚"而不是显示秒数
+  - 参考最佳实践：GitHub/Twitter/Stack Overflow 的时间显示策略
+  - 前端构建成功：145.96 KB (gzip: 46.10 KB)
+  - 用户体验提升：避免显示负数时间，更符合用户预期
+- [2026-01-21] 修复链接监控字段前后端不同步问题 🐛
+  - 问题根因：后端 API 不支持监控字段，导致前端发送的监控配置无法保存
+  - backend/src/routes/links.ts - 3 处修改
+    - linkSchema 添加监控字段验证（isMonitored、checkInterval、checkMethod）
+    - POST /links 接口 insert 语句添加监控字段（默认值：isMonitored=false, checkInterval=5, checkMethod='http_status'）
+    - PUT /links/:id 接口 update 语句添加监控字段（保留现有值）
+  - 部署版本：37c1aa6f-3579-4232-bf1c-81d49f0edd78
+  - 代码包：612.06 KiB（gzip: 114.87 KiB）、启动时间：40 ms
+  - 修复后用户可以正常保存和更新链接的监控配置
+- [2026-01-21] 完成 Cloudflare Cron Triggers 生产环境部署 🚀
+  - 数据库迁移：monitor_logs 表已在生产数据库中创建（表已存在，跳过重复迁移）
+  - Workers 部署：https://cf-nav-backend.kind-me7262.workers.dev
+    - ✅ 代码上传成功：611.39 KiB (gzip: 114.74 KiB)
+    - ✅ Worker 启动时间：24 ms（性能优异）
+    - ✅ D1 数据库绑定：cf-nav-db (2ad8477e-df63-485d-be83-16ffb5e54264)
+    - ✅ 环境变量绑定：ENVIRONMENT、ALLOWED_ORIGINS
+    - ✅ **Cron Trigger 配置成功：`schedule: */5 * * * *`**（每 5 分钟自动执行监控检测）
+  - 部署版本：f5b32f9b-1b10-4c7a-bfc7-6c11143a0f79
+  - 下一步：持续观察生产环境 Cron 执行日志，确认监控检测正常工作
+- [2026-01-21] 完成 Cloudflare Cron Triggers 本地测试验证 ✅
+  - 测试命令：`wrangler dev --test-scheduled` + `curl -X POST http://localhost:8787/__scheduled`
+  - 测试结果：
+    - ✅ scheduled() 函数正确触发
+    - ✅ runMonitorCheck() 执行正常
+    - ✅ 数据库查询成功（查询到 0 个启用监控的链接）
+    - ✅ 日志输出完整（[Cron] 监控任务开始执行 → [监控检测] 任务开始执行 → [Cron] 监控任务执行成功）
+    - ✅ 响应时间：13ms（性能优秀）
+    - ✅ HTTP 状态码：200 OK
+  - 验证内容：
+    - Cron Triggers 配置生效
+    - index.ts 导出格式正确（fetch + scheduled）
+    - monitor-checker.ts 服务正常工作
+    - D1 数据库绑定正常
+    - 环境变量读取正常
+  - 下一步：部署到生产环境
+- [2026-01-21] 更新 Drizzle ORM Schema 同步 monitor_logs 表定义 🔄
+  - backend/src/db/schema.ts - 添加 monitorLogs 表定义到 Drizzle ORM schema
+    - 表结构：id（主键）、linkId（外键关联 links 表）、checkedAt（检测时间）、status（检测状态）
+    - 可选字段：statusCode（HTTP 状态码）、responseTime（响应时间）、errorMessage（错误信息）
+    - 外键约束：references(() => links.id, { onDelete: 'cascade' })
+    - TypeScript 类型推导：MonitorLog（查询类型）、NewMonitorLog（插入类型）
+  - 与数据库迁移保持一致：0002_create_monitor_logs.sql（已创建的监控日志表）
+  - 确保 Drizzle 查询与数据库 schema 同步（避免运行时列映射错误）
+  - TypeScript 类型导出：export type MonitorLog = typeof monitorLogs.$inferSelect
+  - TypeScript 类型导出：export type NewMonitorLog = typeof monitorLogs.$inferInsert
+- [2026-01-21] 完成 Cloudflare Cron Triggers 定时监控任务实现 🎯
+  - backend/wrangler.toml - 添加 Cron Triggers 配置（每 5 分钟执行一次监控检测）
+  - backend/src/services/monitor-checker.ts - 创建监控检测服务（190+ 行）
+    - checkSingleLink(): HTTP HEAD 请求检测网站可用性（10秒超时）
+    - runMonitorCheck(): 定时任务主入口函数（并发检测 + 批量数据库更新 + 自动清理 90 天日志）
+  - backend/src/index.ts - 修改导出格式支持 Cron Triggers
+    - 从 `export default app` 改为对象导出 `{ fetch, scheduled }`
+    - 添加 scheduled() 函数处理定时任务事件
+    - 调用 runMonitorCheck(env.DB) 执行监控检测
+  - 监控逻辑：HTTP 200-299 且响应时间 < 3s 为 up、≥ 3s 为 slow、4xx/5xx 为 down
+  - 性能优化：Promise.all() 并发检测、D1 batch() 批量更新
+  - 数据清理：自动删除 90 天前的旧日志（unixepoch('now', '-90 days')）
+- [2026-01-21] 在顶部导航栏添加监控状态链接 🔗
+  - frontend/src/components/Layout.tsx - 2 处修改
+    - 导入 Activity 图标（lucide-react）
+    - 在导航栏添加监控状态链接（nav 元素内第一个子元素）
+  - 链接配置
+    - 路径：/monitor（监控状态页面）
+    - 图标：Activity（活动/监控图标，w-4 h-4）
+    - 文本：监控状态
+    - 样式：text-gray-600 hover:text-primary-600 transition-colors
+  - 位置设计
+    - 所有人可见（放在 nav 最前面，登录/管理后台之前）
+    - 响应式设计：与其他导航链接使用相同的 space-x-4 间距
+  - 用户体验
+    - Hover 效果：灰色文字 → 主题色
+    - 图标 + 文字组合：flex items-center space-x-1
+    - 平滑过渡动画：transition-colors
+  - 前端编译测试通过（952ms，无 TypeScript 错误）
+  - 部署到生产环境：https://06e78617.cf-nav.pages.dev
+- [2026-01-21] 添加链接监控配置管理UI ⚙️
+  - frontend/src/types/index.ts - Link 接口扩展监控字段（isMonitored, checkInterval, checkMethod 等 6 个字段）
+  - frontend/src/types/index.ts - CreateLinkRequest 接口添加可选监控配置字段
+  - frontend/src/components/LinkForm.tsx - 添加监控配置UI区域（3 处修改）
+    - formData 初始化添加监控字段默认值（isMonitored: false, checkInterval: 5, checkMethod: 'http_status'）
+    - useEffect 同步编辑模式下的监控配置数据
+    - 表单添加监控配置区域（启用开关 + 检测间隔输入 + 检测方法选择）
+  - 用户体验优化
+    - 监控配置独立区域（border-t 分隔线）
+    - 条件渲染：启用监控时才显示参数配置
+    - 灰色背景（bg-gray-50）突出显示监控参数区域
+    - 输入提示：检测间隔建议 5-30 分钟，检测方法说明
+    - 检测间隔限制：最小 1 分钟、最大 60 分钟
+  - 前端编译测试通过（无 TypeScript 错误）
+  - 部署到生产环境：https://51b51e08.cf-nav.pages.dev
 - [2026-01-21] 修复 Drizzle Schema 与数据库迁移同步问题 🐛
   - backend/src/db/schema.ts - 添加监控字段到 links 表 schema 定义
   - 问题根因：数据库迁移 0001_add_monitor_fields.sql 成功添加字段，但 Drizzle ORM schema 未同步更新

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MonitorServiceCard } from '../components/monitor/MonitorServiceCard';
 import { AlertCircle, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { formatLastUpdated } from '../utils/timeFormat';
 
 /**
  * 时间轴数据项接口
@@ -18,9 +19,14 @@ interface TimelineItem {
 interface MonitorService {
   id: number;
   name: string; // 服务名称（不包含 URL）
-  uptimePercentage: number; // 在线率（0-100）
+  uptimePercentage: number; // 在线率（0-100，基于最近45次检测）
+  uptime24h: number; // 最近 24 小时在线率（0-100）
+  uptime30d: number; // 最近 30 天在线率（0-100）
+  avgResponseTime: number; // 平均响应时间（毫秒）
+  lastResponseTime: number | null; // 最后一次响应时间（毫秒）
   currentStatus: 'up' | 'down' | 'slow' | 'unknown';
   timeline: TimelineItem[];
+  lastCheckedAt: number | null; // 最后检测时间（Unix timestamp 秒）
 }
 
 /**
@@ -91,27 +97,6 @@ function getOverallStatusText(status: string): string {
   }
 }
 
-/**
- * 格式化最后更新时间
- *
- * @param timestamp Unix timestamp（秒）
- * @returns 格式化后的时间字符串
- */
-function formatLastUpdated(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
-  const now = new Date();
-  const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffSeconds < 60) {
-    return `${diffSeconds} 秒前`;
-  } else if (diffSeconds < 3600) {
-    return `${Math.floor(diffSeconds / 60)} 分钟前`;
-  } else if (diffSeconds < 86400) {
-    return `${Math.floor(diffSeconds / 3600)} 小时前`;
-  } else {
-    return `${Math.floor(diffSeconds / 86400)} 天前`;
-  }
-}
 
 /**
  * OverallStatusBanner - 整体状态横幅组件
@@ -289,8 +274,8 @@ export const MonitorStatusPage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              // 服务卡片网格布局
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              // 服务卡片列表布局（纵向显示）
+              <div className="flex flex-col gap-6">
                 {data.services.map((service: MonitorService) => (
                   <MonitorServiceCard
                     key={service.id}

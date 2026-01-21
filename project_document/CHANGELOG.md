@@ -5,6 +5,52 @@
 
 ## [2026-01-21]
 ### 新增
+- feat(utils): 创建时间格式化工具函数文件
+  - frontend/src/utils/timeFormat.ts - 提取 formatLastUpdated() 和 formatLastChecked() 函数
+  - 功能：将 Unix timestamp 转换为人类可读的相对时间（"刚刚"、"X 分钟前"等）
+  - 支持服务器与客户端时间偏差处理（< 5 秒显示"刚刚"）
+  - 支持 null 值处理（返回"暂无数据"）
+  - DRY 原则：避免在 MonitorStatusPage 和 MonitorServiceCard 中重复代码
+- feat(deploy): 完成 Cloudflare Cron Triggers 生产环境部署 🚀
+  - 数据库迁移：monitor_logs 表在生产数据库已存在（跳过重复执行）
+  - Workers 部署：https://cf-nav-backend.kind-me7262.workers.dev（Version: f5b32f9b-1b10-4c7a-bfc7-6c11143a0f79）
+  - 部署规格：611.39 KiB 代码包（gzip: 114.74 KiB）、启动时间 24 ms
+  - D1 绑定：cf-nav-db (2ad8477e-df63-485d-be83-16ffb5e54264)
+  - Cron Trigger 配置：`schedule: */5 * * * *`（每 5 分钟自动执行网站监控检测）
+  - 自动化任务：并发 HTTP 检测、批量数据库更新、90 天日志清理
+- test(monitor): 完成 Cloudflare Cron Triggers 本地测试验证
+  - 测试方法：wrangler dev --test-scheduled + curl 手动触发
+  - 测试结果：scheduled() 函数正确触发、runMonitorCheck() 执行正常、D1 查询成功、响应时间 13ms
+  - 验证内容：Cron Triggers 配置、Workers 导出格式、监控检测服务、数据库绑定、环境变量
+  - 测试通过：✅ 所有功能正常工作，准备部署到生产环境
+- feat(schema): 同步 Drizzle ORM Schema 添加 monitor_logs 表定义
+  - backend/src/db/schema.ts - 添加 monitorLogs 表到 Drizzle schema（与迁移 0002_create_monitor_logs.sql 保持一致）
+  - TypeScript 类型导出：MonitorLog（$inferSelect）和 NewMonitorLog（$inferInsert）
+  - 表结构：id（主键）、linkId（外键）、checkedAt（时间戳）、status（检测状态）、statusCode、responseTime、errorMessage
+  - 外键约束：cascade 删除关联的监控日志
+  - 确保 Drizzle 查询不会因缺少字段定义而运行时报错
+- feat(monitor): 实现 Cloudflare Cron Triggers 定时监控任务
+  - backend/wrangler.toml - 添加 [triggers] crons 配置（每 5 分钟执行监控检测）
+  - backend/src/services/monitor-checker.ts - 创建监控检测服务（190+ 行完整实现）
+  - backend/src/index.ts - 修改 Workers 导出格式支持 Cron Triggers（fetch + scheduled）
+  - 监控逻辑：HTTP HEAD 请求、10 秒超时、状态分类（up/slow/down）
+  - 性能优化：Promise.all 并发检测、db.batch 批量更新
+  - 数据清理：自动删除 90 天前旧日志
+- feat(layout): 在顶部导航栏添加监控状态链接
+  - frontend/src/components/Layout.tsx - 导入 Activity 图标（lucide-react）
+  - frontend/src/components/Layout.tsx - 在导航栏添加"监控状态"链接（所有人可见）
+  - 链接路径：/monitor
+  - 图标：Activity（活动/监控图标）
+  - 位置：顶部导航栏左侧，在登录/管理后台链接之前
+  - 可见性：公开链接，无需登录即可访问
+- feat(monitor): 在链接管理表单添加监控配置UI
+  - frontend/src/types/index.ts - Link 接口添加监控字段（isMonitored, checkInterval, checkMethod, monitorStatus, responseTime, lastCheckedAt）
+  - frontend/src/types/index.ts - CreateLinkRequest 接口添加可选监控字段
+  - frontend/src/components/LinkForm.tsx - 添加监控配置区域UI（启用监控开关、检测间隔输入、检测方法选择）
+  - 监控配置仅在启用时显示参数（条件渲染）
+  - 检测间隔：1-60 分钟可选，默认 5 分钟
+  - 检测方法：HTTP 状态检测 / Ping 检测二选一
+  - 表单数据同步：创建/编辑链接时正确读取和保存监控配置
 - docs(test): 创建监控功能本地测试指南
   - TEST_GUIDE.md - 完整的测试指南文档（300+ 行，9 个测试步骤）
   - 前置准备：环境变量检查、数据库迁移确认
@@ -82,12 +128,84 @@
   - 解决 React Router 直接访问路由 404 问题
 
 ### 修改
+- refactor(monitor): 监控卡片横向布局重构（Uptime Kuma 风格）🎨
+  - 后端API增强 (backend/src/routes/monitor.ts)
+    - MonitorService接口添加4个新字段: uptime24h, uptime30d, avgResponseTime, lastResponseTime
+    - 实现24小时在线率计算（查询checked_at >= now - 24*60*60的记录）
+    - 实现30天在线率计算（查询checked_at >= now - 30*24*60*60的记录）
+    - 实现平均响应时间计算（基于最近45次up/slow状态记录）
+    - 提取最后响应时间（timeline数组最后一条记录）
+    - 在线率保留1位小数：Math.round((upCount/totalCount)*1000)/10
+  - 前端组件重构 (frontend/src/components/monitor/MonitorServiceCard.tsx)
+    - 完全重写为横向flexbox布局（使用justify-between, gap-6）
+    - 删除所有垂直布局代码和徽章显示逻辑
+    - 添加getStatusIcon()函数（返回Check绿✓或X红✗图标）
+    - 四区域设计：
+      1. 左侧: 状态图标 + 服务名称（min-w-200px）
+      2. 中左: Activity蓝色图标 + "{avg}ms (avg) / {last}ms (last)"（min-w-180px）
+      3. 中右: Wrench橙色图标 + "{uptime}% (24h) / {uptime}% (30d)"（min-w-180px）
+      4. 右侧: Heart粉色图标 + UptimeTimeline组件（flex-1）
+    - 深色主题：bg-gray-800, border-gray-700, text-gray-100/300
+    - 图标尺寸统一：w-5 h-5（Section图标），w-6 h-6（Status图标）
+  - 前端接口同步 (frontend/src/pages/MonitorStatusPage.tsx)
+    - MonitorService接口添加uptime24h, uptime30d, avgResponseTime, lastResponseTime
+  - 数据库查询优化：
+    - 3个并行SQL查询（最近45条、24h记录、30d记录）
+    - 使用WHERE checked_at >= ?过滤时间范围
+    - Promise.all()并发执行减少延迟
+  - 用户确认：保持5分钟监控频率（288条/天，8640条/30天，数据充足）
+  - 构建验证：TypeScript编译通过（920ms，无类型错误）
+- refactor(monitor): 移除监控卡片"最近X次检测记录"说明文字
+  - frontend/src/components/monitor/MonitorServiceCard.tsx - 删除时间轴说明文字（168-172 行）
+  - 用户反馈：该文字没有意义，界面应更简洁
+  - 修改内容：删除"最近 {service.timeline.length} 次检测记录"显示
+  - UI 改进：时间轴组件直接展示，无需额外说明
+- feat(monitor): 监控卡片添加上一次检测时间显示 🎯
+  - frontend/src/components/monitor/MonitorServiceCard.tsx - 显示"在线 • 5 分钟前"格式
+  - frontend/src/components/monitor/MonitorServiceCard.tsx - 更新说明文字："最近 45 次检测记录" → "最近检测记录"（避免硬编码数字引起用户疑惑）
+  - frontend/src/pages/MonitorStatusPage.tsx - 删除内联 formatLastUpdated 函数，改用工具文件导入
+  - 用户体验改进：每个服务卡片清晰显示最后检测时间，无需手动计算
+- feat(api): 监控 API 添加 lastCheckedAt 字段
+  - backend/src/routes/monitor.ts - MonitorService 接口添加 lastCheckedAt 字段（Unix timestamp 秒，无检测记录时为 null）
+  - backend/src/routes/monitor.ts - 从 timeline 数组自动提取最后检测时间
+  - API 返回更完整数据，前端无需计算
+  - 部署版本：3573ae72-0042-4474-b7ae-bdd7299fda4b（626.26 KiB，gzip: 118.74 KiB，启动时间 25ms）
 - feat(routes): 添加监控状态页面路由到 App.tsx
   - frontend/src/App.tsx - 添加 /monitor 公开路由
   - 导入 MonitorStatusPage 组件
   - 配置为公开路由（无需认证）
 
 ### 修复
+- fix(links): 修复链接监控字段前后端不同步导致无法保存配置
+  - backend/src/routes/links.ts - linkSchema 添加监控字段验证（isMonitored、checkInterval、checkMethod）
+  - backend/src/routes/links.ts - POST /links 接口 insert 语句添加监控字段（默认值：isMonitored=false, checkInterval=5, checkMethod='http_status'）
+  - backend/src/routes/links.ts - PUT /links/:id 接口 update 语句添加监控字段（保留现有值）
+  - 问题根因：前端已添加监控配置 UI，但后端 API 的 Zod schema 和数据库操作未同步更新
+  - 错误表现：用户保存开启监控的链接时，监控字段被 Zod 验证器过滤丢弃，无法写入数据库
+  - 部署版本：37c1aa6f-3579-4232-bf1c-81d49f0edd78（Workers 启动时间：40 ms）
+- fix(monitor): 修复监控页面部署后 React Query 错误
+  - frontend/src/main.tsx - 添加 QueryClientProvider 配置包裹 App 组件
+  - 问题根因：MonitorStatusPage 使用 useQuery hook，但应用根节点未提供 QueryClient context
+  - 错误表现：浏览器控制台显示 "Error: No QueryClient set, use QueryClientProvider to set one"
+  - 修复方案：创建 QueryClient 实例（5分钟 staleTime，1次重试）并用 QueryClientProvider 包裹 App
+  - 技术原因：React Query 要求在组件树顶层提供 QueryClient context，否则所有 useQuery 调用都会失败
+- fix(monitor): 修复监控页面 API 路径重复问题
+  - frontend/src/pages/MonitorStatusPage.tsx - 修复 API URL 从 /api/api/monitor/status 到 /api/monitor/status
+  - 问题根因：环境变量 VITE_API_BASE_URL 已包含 /api 前缀，代码又重复添加 /api/
+  - 错误表现：网络请求 404，浏览器显示 "加载失败: Unexpected token '<', '<!doctype '... is not valid JSON"
+  - 修复方案：去除重复的 /api/ 前缀，改为 `${API_BASE_URL}/monitor/status`
+- fix(monitor): 配置 API 环境变量默认值为后端 Workers URL
+  - frontend/src/pages/MonitorStatusPage.tsx - 设置默认 API_BASE_URL 为生产后端地址
+  - 问题根因：Cloudflare Pages 不支持 _redirects 代理到外部 URL
+  - 原方案失败：_redirects 配置 `/api/* https://backend.workers.dev/api/:splat` 无法生效
+  - 修复方案：使用环境变量 + 合理默认值（开发环境 localhost:8787，生产环境 Workers URL）
+  - 最佳实践：通过 Cloudflare Pages 环境变量 VITE_API_BASE_URL 覆盖默认值
+- fix(deploy): 合并监控功能到 main 分支并部署到生产环境
+  - 合并 feature/monitor-status-page → main（Fast-forward，1513 行代码）
+  - 推送到 GitHub：git@github.com:arschlochnop/cf-nav.git
+  - 部署前端：https://c592065e.cf-nav.pages.dev（main 分支）
+  - 部署后端：Version 33f31ade-3d27-4cb6-bfb0-f05b4c9447cc
+  - 验证成功：https://nav.13331000.xyz/monitor 监控页面正常运行
 - fix(schema): 修复 Drizzle Schema 与数据库迁移同步问题
   - backend/src/db/schema.ts - 添加监控字段到 links 表 Drizzle ORM schema 定义
   - 问题根因：数据库迁移 0001_add_monitor_fields.sql 成功添加 6 个监控字段，但 schema.ts 未同步更新

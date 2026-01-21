@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { LogOut, Settings } from 'lucide-react';
+import { LogOut, Settings, Key } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -39,6 +39,13 @@ export function Layout({ children, showHeader = true, showAdminNav = false }: La
                     )}
                     <div className="flex items-center space-x-3">
                       <span className="text-sm text-gray-600">欢迎，{user?.username}</span>
+                      <Link
+                        to="/change-password"
+                        className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                      >
+                        <Key className="w-4 h-4" />
+                        <span>修改密码</span>
+                      </Link>
                       <button
                         onClick={logout}
                         className="flex items-center space-x-1 px-3 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"

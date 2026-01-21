@@ -20,6 +20,36 @@
   - 描述: 配置本地 Git 仓库并推送到 GitHub
 
 ## 最近完成
+- [2026-01-21] 实现用户密码修改功能 🔐
+  - 后端 API 实现
+    - backend/src/routes/auth.ts - 添加 PUT /auth/password 接口
+    - 创建 changePasswordSchema 验证（旧密码 + 新密码，最小8字符）
+    - 验证旧密码正确性（bcrypt 对比）
+    - 验证新密码强度（大小写字母、数字、特殊字符）
+    - 防止新旧密码相同
+    - 更新数据库密码（bcrypt 加密存储）
+  - 前端实现
+    - frontend/src/pages/ChangePassword.tsx - 创建密码修改页面（311行）
+    - 三个密码输入框（旧密码、新密码、确认密码）
+    - 密码可见性切换功能（Eye/EyeOff 图标）
+    - 实时密码强度验证（客户端）
+    - 密码一致性检查（新密码与确认密码）
+    - 成功后3秒自动跳转管理页面
+    - frontend/src/types/index.ts - 添加 ChangePasswordRequest 类型
+    - frontend/src/services/api.ts - 添加 changePassword API 方法
+    - frontend/src/App.tsx - 添加受保护路由 /change-password
+    - frontend/src/components/Layout.tsx - 添加"修改密码"导航链接（Key 图标）
+  - 安全特性
+    - JWT 认证保护（仅登录用户可访问）
+    - 双重密码验证（客户端 + 服务端）
+    - 密码强度要求（至少8字符，含大小写字母、数字、特殊字符）
+    - 防止密码重用（新密码不能与旧密码相同）
+  - 用户体验优化
+    - 实时反馈（密码强度提示、一致性检查）
+    - 视觉提示（绿色勾号、红色叉号）
+    - 全局导航（所有页面顶部都能访问修改密码）
+    - 自动跳转（成功后返回管理页面）
+
 - [2026-01-21] 项目代码重组和文档完善 ✨
   - 项目结构优化
     - 删除冗余的 cf-nav/ 目录（包含旧的配置文件和迁移文件）

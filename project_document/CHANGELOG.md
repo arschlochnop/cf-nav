@@ -5,6 +5,15 @@
 
 ## [2026-01-21]
 ### 新增
+- feat(auth): 实现用户密码修改功能
+  - backend/src/routes/auth.ts - 添加 PUT /auth/password 接口（旧密码验证、新密码强度检查、密码重用防护）
+  - frontend/src/pages/ChangePassword.tsx - 创建密码修改页面（实时密码强度提示、密码可见性切换、自动跳转）
+  - frontend/src/types/index.ts - 添加 ChangePasswordRequest 类型定义
+  - frontend/src/services/api.ts - 添加 changePassword API 方法
+  - frontend/src/App.tsx - 添加受保护路由 /change-password
+  - frontend/src/components/Layout.tsx - 在导航栏添加"修改密码"链接（Key 图标）
+  - 安全特性：JWT 认证保护、双重密码验证、密码强度要求（8字符+大小写字母+数字+特殊字符）
+  - 用户体验：实时反馈、视觉提示、全局导航、成功后自动跳转
 - feat(scripts): 创建一键部署脚本
   - scripts/deploy.sh - 自动化部署脚本（190+ 行 Bash）
   - 支持环境检查（Node.js、npm、wrangler）

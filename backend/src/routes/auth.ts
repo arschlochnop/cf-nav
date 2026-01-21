@@ -49,6 +49,14 @@ const registerSchema = z.object({
 });
 
 /**
+ * 修改密码请求验证 Schema
+ */
+const changePasswordSchema = z.object({
+  oldPassword: z.string().min(1, '旧密码不能为空'),
+  newPassword: z.string().min(8, '新密码至少 8 个字符'),
+});
+
+/**
  * POST /auth/login - 用户登录
  */
 auth.post('/login', zValidator('json', loginSchema), async (c) => {
@@ -233,6 +241,97 @@ auth.get('/me', authMiddleware, async (c) => {
     return c.json({
       success: true,
       data: userList[0],
+    });
+  } catch (error) {
+    throw error;
+  }
+});
+
+/**
+ * PUT /auth/password - 修改密码
+ * 需要认证（JWT Token）
+ */
+auth.put('/password', authMiddleware, zValidator('json', changePasswordSchema), async (c) => {
+  try {
+    const user = c.get('user');
+    const { oldPassword, newPassword } = c.req.valid('json');
+    const db = drizzle(c.env.DB);
+
+    // 查询当前用户信息（包括密码哈希）
+    const userList = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.userId))
+      .limit(1);
+
+    if (userList.length === 0) {
+      return c.json(
+        {
+          success: false,
+          message: '用户不存在',
+          code: 'USER_NOT_FOUND',
+        },
+        404
+      );
+    }
+
+    const currentUser = userList[0];
+
+    // 验证旧密码是否正确
+    const isOldPasswordValid = await verifyPassword(oldPassword, currentUser.password);
+
+    if (!isOldPasswordValid) {
+      return c.json(
+        {
+          success: false,
+          message: '旧密码错误',
+          code: 'INVALID_OLD_PASSWORD',
+        },
+        401
+      );
+    }
+
+    // 验证新密码强度
+    const passwordValidation = validatePasswordStrength(newPassword);
+    if (!passwordValidation.isValid) {
+      return c.json(
+        {
+          success: false,
+          message: '新密码强度不足',
+          code: 'WEAK_PASSWORD',
+          errors: passwordValidation.errors,
+        },
+        400
+      );
+    }
+
+    // 检查新密码是否与旧密码相同
+    if (oldPassword === newPassword) {
+      return c.json(
+        {
+          success: false,
+          message: '新密码不能与旧密码相同',
+          code: 'SAME_PASSWORD',
+        },
+        400
+      );
+    }
+
+    // 加密新密码
+    const hashedPassword = await hashPassword(newPassword);
+
+    // 更新数据库中的密码
+    await db
+      .update(users)
+      .set({
+        password: hashedPassword,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(users.id, user.userId));
+
+    return c.json({
+      success: true,
+      message: '密码修改成功',
     });
   } catch (error) {
     throw error;

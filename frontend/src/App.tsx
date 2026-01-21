@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Home } from '@/pages/Home';
 import { Login } from '@/pages/Login';
 import { Admin } from '@/pages/Admin';
+import { ChangePassword } from '@/pages/ChangePassword';
 
 /**
  * 受保护的路由组件
@@ -34,6 +35,16 @@ export function App() {
           element={
             <ProtectedRoute>
               <Admin />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 受保护的修改密码路由 */}
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePassword />
             </ProtectedRoute>
           }
         />

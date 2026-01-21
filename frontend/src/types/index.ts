@@ -80,6 +80,14 @@ export interface AuthResponse {
 }
 
 /**
+ * 修改密码请求
+ */
+export interface ChangePasswordRequest {
+  oldPassword: string;
+  newPassword: string;
+}
+
+/**
  * 创建分类请求
  */
 export interface CreateCategoryRequest {

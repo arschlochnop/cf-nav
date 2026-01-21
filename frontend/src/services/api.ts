@@ -4,6 +4,7 @@ import type {
   LoginRequest,
   RegisterRequest,
   AuthResponse,
+  ChangePasswordRequest,
   User,
   Category,
   CreateCategoryRequest,
@@ -100,6 +101,16 @@ export const authAPI = {
       throw new Error(response.data.message || '获取用户信息失败');
     }
     return response.data.data;
+  },
+
+  /**
+   * 修改密码
+   */
+  changePassword: async (data: ChangePasswordRequest): Promise<void> => {
+    const response = await axiosInstance.put<ApiResponse>('/auth/password', data);
+    if (!response.data.success) {
+      throw new Error(response.data.message || '修改密码失败');
+    }
   },
 };
 

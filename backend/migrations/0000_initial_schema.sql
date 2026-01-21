@@ -83,10 +83,10 @@ CREATE INDEX IF NOT EXISTS idx_links_category_visible_sort
 -- 4. 插入默认数据
 -- ============================================
 
--- 默认管理员账号（密码：admin123，已经过 bcrypt 加密）
+-- 默认管理员账号（密码：Admin@123，已经过 bcrypt 加密）
 -- 注意：生产环境部署后请立即修改密码！
 INSERT OR IGNORE INTO users (id, username, password, email) VALUES
-(1, 'admin', '$2a$10$YourHashedPasswordHere', 'admin@example.com');
+(1, 'admin', '$2a$10$GZzaLbIlr4viIMuKZNf.OuSaLqhUGtpC9ma7qiGZxffrafdFDAZBK', 'admin@example.com');
 
 -- 默认分类
 INSERT OR IGNORE INTO categories (id, name, description, icon, sort_order, is_visible) VALUES

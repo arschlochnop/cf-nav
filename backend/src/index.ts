@@ -13,6 +13,8 @@ import linksRouter from './routes/links';
 type Bindings = {
   DB: D1Database;
   JWT_SECRET?: string;
+  ENVIRONMENT?: string;
+  ALLOWED_ORIGINS?: string;
 };
 
 /**
@@ -39,31 +41,36 @@ app.use('*', logger());
 
 // CORS 配置（允许前端跨域访问）
 // 从环境变量读取允许的域名列表，多个域名用逗号分隔
-app.use(
-  '*',
-  cors({
-    origin: (origin) => {
-      // 允许的域名列表（从环境变量读取，默认仅允许本地开发）
-      const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
-        'http://localhost:5173',
-        'http://localhost:3000',
-      ];
+app.use('*', async (c, next) => {
+  // 从 Cloudflare Workers 环境变量读取允许的域名
+  const allowedOriginsEnv = c.env.ALLOWED_ORIGINS || '';
+  const allowedOrigins = allowedOriginsEnv
+    ? allowedOriginsEnv.split(',').map((o) => o.trim())
+    : ['http://localhost:5173', 'http://localhost:3000'];
 
-      // 如果请求来自允许的域名，或者是服务器端请求（无 origin），则允许
-      if (!origin || allowedOrigins.includes(origin)) {
-        return origin || '*';
-      }
+  const origin = c.req.header('Origin');
 
-      // 其他域名一律拒绝
-      return '';
-    },
-    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
-    exposeHeaders: ['Content-Length'],
-    maxAge: 86400,
-    credentials: true,
-  })
-);
+  // 检查请求来源是否在白名单中
+  if (origin && allowedOrigins.includes(origin)) {
+    c.header('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    // 无 origin 的请求（例如服务器端请求）允许
+    c.header('Access-Control-Allow-Origin', '*');
+  }
+
+  c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  c.header('Access-Control-Expose-Headers', 'Content-Length');
+  c.header('Access-Control-Max-Age', '86400');
+  c.header('Access-Control-Allow-Credentials', 'true');
+
+  // 处理 OPTIONS 预检请求
+  if (c.req.method === 'OPTIONS') {
+    return c.text('', 204);
+  }
+
+  await next();
+});
 
 // 格式化 JSON 输出
 app.use('*', prettyJSON());

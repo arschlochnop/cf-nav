@@ -4,14 +4,39 @@
 
 ## 当前任务
 - [x] GitHub 仓库管理设施搭建
+- [x] Git 仓库初始化和远程仓库配置
+- [ ] Cloudflare 部署准备（进行中）
 
 ## 任务详情
 - GitHub 仓库管理设施
   - 状态: 已完成
   - 文件: `.github/` 目录
   - 描述: 完整的 GitHub 仓库管理基础设施
+- Git 仓库初始化
+  - 状态: 已完成
+  - 仓库: git@github.com:arschlochnop/cf-nav.git
+  - 分支策略: github-flow（main 分支 + 功能分支）
+  - 描述: 配置本地 Git 仓库并推送到 GitHub
 
 ## 最近完成
+- [2026-01-21] Cloudflare 部署配置准备
+  - backend/wrangler.toml - 修复 JWT_SECRET 明文存储安全隐患
+    - 移除生产环境和开发环境的 JWT_SECRET 明文配置
+    - 添加 ALLOWED_ORIGINS 环境变量配置（CORS 白名单）
+    - 添加注释说明必须使用 `wrangler secret put JWT_SECRET` 命令设置
+  - frontend/public/_redirects - 创建 SPA 路由配置文件
+    - 配置所有路由重定向到 index.html（/* /index.html 200）
+    - 解决 React Router 直接访问路由 404 问题
+  - 生成安全随机密钥（openssl rand -base64 32）
+    - JWT_SECRET: 5cqdMGjgX8MeUCoxMMbrcCmo5P4Ld1ETi8bionpdVF8=
+
+- [2026-01-21] Git 仓库配置和远程仓库连接
+  - 将 master 分支重命名为 main（符合 github-flow 规范）
+  - 更换远程仓库：从上游仓库切换到用户仓库 git@github.com:arschlochnop/cf-nav.git
+  - 推送所有提交到 GitHub 远程仓库
+  - 配置上游分支跟踪（git push -u origin main）
+  - 分支策略：github-flow（简单分支策略，main + 功能分支）
+
 - [2026-01-21] 修复所有认证中间件测试（13个测试全部通过）
   - backend/src/middleware/auth.test.ts - 为所有Hono实例添加Bindings类型
     - 修复3个describe块的类型定义（authMiddleware、optionalAuthMiddleware、集成测试）
@@ -129,6 +154,11 @@
 - 使用 GitHub Actions 实现 CI/CD 和自动化
 - 采用 YAML 格式的 Issue 模板以获得更好的表单体验
 - 上游同步采用 PR 方式而非直接合并，避免冲突
+- 采用 github-flow 分支策略（简单高效）
+  - 主分支：main（生产环境代码）
+  - 功能分支：feature/* 或 fix/* 或 hotfix/*
+  - 工作流：feature 分支 → PR → Code Review → 合并 main → 部署
+  - 优势：流程简单、适合小团队、持续部署
 
 ---
 *本文档由 Claude Code 自动维护，请勿手动编辑格式*

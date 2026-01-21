@@ -5,11 +5,24 @@
 
 ## [2026-01-21]
 ### 新增
+- chore(git): 配置 Git 仓库和 GitHub 远程连接
+  - 将 master 分支重命名为 main（符合 github-flow 规范）
+  - 配置远程仓库：git@github.com:arschlochnop/cf-nav.git
+  - 采用 github-flow 分支策略（main + 功能分支）
+  - 推送所有提交到 GitHub 并设置上游跟踪
 - feat(test): 创建测试数据库初始化设置文件
   - backend/tests/setup.ts - 全局测试前置钩子，SQL 脚本内联方式初始化 D1 数据库
   - backend/vitest.config.ts - 添加 setupFiles 配置指向 tests/setup.ts
+- feat(deploy): 创建 Cloudflare Pages SPA 路由配置文件
+  - frontend/public/_redirects - 所有路由重定向到 index.html（/* /index.html 200）
+  - 解决 React Router 直接访问路由 404 问题
 
 ### 修复
+- fix(security): 修复 wrangler.toml JWT_SECRET 明文存储安全隐患
+  - backend/wrangler.toml - 移除生产和开发环境的 JWT_SECRET 明文配置
+  - 添加注释说明必须使用 `wrangler secret put JWT_SECRET` 命令设置
+  - 添加 ALLOWED_ORIGINS 环境变量配置（CORS 白名单）
+  - 生成安全随机密钥：5cqdMGjgX8MeUCoxMMbrcCmo5P4Ld1ETi8bionpdVF8=（使用 openssl rand -base64 32）
 - fix(jwt): 修复 JWT 环境变量访问方式（Cloudflare Workers 兼容性）
   - backend/src/utils/jwt.ts - 重构为依赖注入模式，接受 secret 参数而非直接读取 process.env
   - backend/src/routes/auth.ts - 从 c.env.JWT_SECRET 读取密钥并传递给 JWT 工具函数

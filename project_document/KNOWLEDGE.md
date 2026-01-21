@@ -131,7 +131,23 @@ CF-Nav - Cloudflare 导航网站
   - `auth.ts (middleware)`: 认证中间件从 `c.env.JWT_SECRET` 读取密钥
   - `vitest.config.ts`: 通过 `miniflare.bindings` 注入测试密钥
 
-### ADR-012: 测试数据库初始化 SQL 内联策略
+### ADR-012: GitHub-Flow 分支策略
+- **背景**: 需要选择合适的 Git 工作流协作开发
+- **决策**: 采用 github-flow 简单分支策略
+- **原因**:
+  - **简单高效**: 只有 main 分支 + 功能分支，学习成本低
+  - **持续部署**: 支持快速迭代和持续交付
+  - **适合小团队**: 流程轻量，减少分支管理复杂度
+  - **代码审查**: 通过 PR 强制 Code Review，确保代码质量
+- **工作流**:
+  1. 从 main 分支创建功能分支（feature/xxx、fix/xxx、hotfix/xxx）
+  2. 在功能分支开发并提交
+  3. 提交 Pull Request 到 main 分支
+  4. Code Review 通过后合并到 main
+  5. main 分支自动部署到生产环境
+- **实施**: Git 仓库配置 origin: git@github.com:arschlochnop/cf-nav.git
+
+### ADR-013: 测试数据库初始化 SQL 内联策略
 - **背景**: Vitest Workers 环境下测试报错 "D1_ERROR: no such table: users"，数据库 schema 未初始化
 - **决策**: 在 `tests/setup.ts` 中内联 SQL 迁移脚本，使用 `beforeAll` 钩子初始化测试数据库
 - **原因**:
@@ -147,6 +163,47 @@ CF-Nav - Cloudflare 导航网站
   - **优点**: 测试稳定、无文件依赖、Workers 兼容
   - **缺点**: SQL 内容重复（与 migrations/ 目录重复），需手动同步迁移文件变更
 - **维护策略**: 当 `0000_initial_schema.sql` 变更时，必须同步更新 `tests/setup.ts` 中的 `INITIAL_SCHEMA_SQL`
+
+### ADR-014: Cloudflare 部署配置安全加固
+- **背景**: wrangler.toml 初始配置存在 JWT_SECRET 明文存储安全隐患，违反最佳实践
+- **决策**: 使用 Wrangler Secret 管理敏感配置，配置文件仅存放非敏感变量
+- **原因**:
+  - **安全性**: JWT_SECRET 明文存储可被 Git 历史泄露，攻击者可伪造 Token
+  - **最佳实践**: Cloudflare 官方推荐使用 `wrangler secret put` 命令管理敏感信息
+  - **分离原则**: 敏感配置（secret）与非敏感配置（vars）分离管理
+- **实施**:
+  - `backend/wrangler.toml`: 移除所有环境的 JWT_SECRET 配置，添加 ALLOWED_ORIGINS 变量
+  - 部署前执行: `wrangler secret put JWT_SECRET` 和 `wrangler secret put JWT_SECRET --env dev`
+  - 生成安全密钥: `openssl rand -base64 32` 生成 256-bit 随机密钥
+- **配置示例**:
+  ```toml
+  [vars]
+  ENVIRONMENT = "production"
+  ALLOWED_ORIGINS = "https://cf-nav.pages.dev"  # 部署后填入 Pages 域名
+  ```
+- **密钥管理**:
+  - 生产环境: `wrangler secret put JWT_SECRET`（手动输入密钥）
+  - 开发环境: `wrangler secret put JWT_SECRET --env dev`
+  - 验证: `wrangler secret list` 查看已配置的 secret
+
+### ADR-015: Cloudflare Pages SPA 路由配置
+- **背景**: React Router 直接访问路由（如 `/dashboard`）会返回 404，需要配置服务器重定向
+- **决策**: 创建 `frontend/public/_redirects` 文件配置所有路由重定向到 `index.html`
+- **原因**:
+  - **SPA 特性**: React Router 使用客户端路由，服务器需将所有路由请求重定向到 index.html
+  - **Pages 兼容**: Cloudflare Pages 支持 `_redirects` 文件配置重定向规则
+  - **简洁性**: 单行配置 `/* /index.html 200` 解决所有路由问题
+- **实施**:
+  - `frontend/public/_redirects`: 配置通配符重定向规则
+  - 构建时自动复制到 `dist/_redirects`（Vite 默认行为）
+- **配置内容**:
+  ```
+  /* /index.html 200
+  ```
+- **工作原理**:
+  - 用户访问 `/dashboard` → Pages 返回 `index.html`（状态码 200）
+  - React Router 接管路由 → 渲染 Dashboard 组件
+  - 避免 404 错误，支持直接访问任意前端路由
 
 ---
 

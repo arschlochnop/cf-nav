@@ -5,6 +5,13 @@
 
 ## [2026-01-21]
 ### 新增
+- feat(deploy): 完成 Cloudflare 生产环境部署 🎉
+  - 创建 D1 数据库（生产和开发环境）并执行迁移
+  - 部署后端到 Workers (https://cf-nav-backend.kind-me7262.workers.dev)
+  - 部署前端到 Pages (https://87227857.cf-nav.pages.dev, https://cf-nav.pages.dev)
+  - 端到端测试验证通过（前端访问、API 调用、CORS 配置、数据库数据）
+- feat(frontend): 创建 Vite 环境变量类型声明
+  - frontend/src/vite-env.d.ts - 添加 import.meta.env 类型定义（VITE_API_BASE_URL）
 - chore(git): 配置 Git 仓库和 GitHub 远程连接
   - 将 master 分支重命名为 main（符合 github-flow 规范）
   - 配置远程仓库：git@github.com:arschlochnop/cf-nav.git
@@ -18,6 +25,20 @@
   - 解决 React Router 直接访问路由 404 问题
 
 ### 修复
+- fix(auth): 修复默认管理员账号密码占位符问题
+  - backend/migrations/0000_initial_schema.sql - 将占位符密码哈希替换为真实 bcrypt 哈希
+  - 问题根因：迁移文件中使用 `$2a$10$YourHashedPasswordHere` 占位符导致登录失败
+  - 修复方案：使用 bcryptjs 生成 Admin@123 的真实哈希（10 轮加密）
+  - 数据库更新：通过 wrangler d1 execute 更新生产和开发数据库管理员密码
+  - 验证结果：登录成功，JWT 认证流程正常，/api/auth/me 返回正确用户信息
+- fix(deploy): 修复后端部署兼容性和 CORS 环境变量问题
+  - backend/wrangler.toml - 更新 compatibility_date (2024-01-01 → 2024-09-23) 支持 Node.js 模块
+  - backend/wrangler.toml - 配置 CORS 白名单（Pages 生产域名 + 预览域名）
+  - backend/src/index.ts - 修复 CORS 中间件环境变量读取（process.env → c.env.ALLOWED_ORIGINS）
+  - backend/src/index.ts - 添加 Bindings 类型定义（ENVIRONMENT, ALLOWED_ORIGINS）
+- fix(frontend): 修复前端构建 TypeScript 和 Tailwind CSS 问题
+  - frontend/tsconfig.json - 排除测试文件（src/test, *.test.ts）避免生产构建报错
+  - frontend/src/index.css - 修复 Tailwind CSS @apply 指令（移除未定义的 border-border 类）
 - fix(security): 修复 wrangler.toml JWT_SECRET 明文存储安全隐患
   - backend/wrangler.toml - 移除生产和开发环境的 JWT_SECRET 明文配置
   - 添加注释说明必须使用 `wrangler secret put JWT_SECRET` 命令设置

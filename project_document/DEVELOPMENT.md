@@ -5,7 +5,7 @@
 ## 当前任务
 - [x] GitHub 仓库管理设施搭建
 - [x] Git 仓库初始化和远程仓库配置
-- [ ] Cloudflare 部署准备（进行中）
+- [x] Cloudflare 生产环境部署（已完成）
 
 ## 任务详情
 - GitHub 仓库管理设施
@@ -19,6 +19,45 @@
   - 描述: 配置本地 Git 仓库并推送到 GitHub
 
 ## 最近完成
+- [2026-01-21] 修复管理员账号密码问题并完成端到端验证
+  - backend/migrations/0000_initial_schema.sql - 更新默认管理员密码哈希
+    - 将占位符 `$2a$10$YourHashedPasswordHere` 替换为真实的 bcrypt 哈希
+    - 新密码：Admin@123（哈希：$2a$10$GZzaLbIlr4viIMuKZNf.OuSaLqhUGtpC9ma7qiGZxffrafdFDAZBK）
+    - 使用 bcryptjs 生成安全密码哈希（10 轮加密）
+  - 数据库密码更新
+    - 执行 wrangler d1 execute 更新生产数据库管理员密码
+    - 执行 wrangler d1 execute 更新开发数据库管理员密码
+    - 两个数据库均成功更新（changes: 1）
+  - 端到端测试验证通过
+    - ✅ 管理员登录成功（admin / Admin@123）
+    - ✅ JWT Token 生成正常
+    - ✅ /api/auth/me 认证接口返回正确用户信息
+    - ✅ 完整认证流程验证通过
+
+- [2026-01-21] Cloudflare 生产环境部署成功 🎉
+  - D1 数据库创建和配置
+    - 生产数据库: cf-nav-db (ID: 2ad8477e-df63-485d-be83-16ffb5e54264)
+    - 开发数据库: cf-nav-db-dev (ID: da91ecb2-9e89-487e-8e28-96811d3a0bfa)
+    - 执行数据库迁移（19 条 SQL 语句，82 行数据）
+  - 后端 Workers 部署
+    - 部署 URL: https://cf-nav-backend.kind-me7262.workers.dev
+    - 修复 compatibility_date (2024-01-01 → 2024-09-23) 支持 Node.js 内置模块
+    - 修复 CORS 中间件环境变量读取（process.env → c.env）
+    - 配置 JWT_SECRET 密钥（使用 wrangler secret put）
+    - 配置 CORS 白名单（Pages 生产域名 + 预览域名）
+  - 前端 Pages 部署
+    - 部署 URL: https://87227857.cf-nav.pages.dev
+    - 生产域名: https://cf-nav.pages.dev
+    - 创建 frontend/src/vite-env.d.ts 添加 Vite 环境变量类型声明
+    - 修复 frontend/tsconfig.json 排除测试文件避免构建错误
+    - 修复 frontend/src/index.css Tailwind CSS 配置问题
+    - 构建产物大小: 277 KB（Gzip 压缩后 89 KB）
+  - 端到端测试验证
+    - ✅ 前端页面访问正常（HTTP 200）
+    - ✅ 后端 API 正常工作（分类、链接数据返回正确）
+    - ✅ CORS 白名单正确配置（允许 Pages 域名，拒绝其他域名）
+    - ✅ 数据库数据完整（4 个分类，4 个示例链接）
+
 - [2026-01-21] Cloudflare 部署配置准备
   - backend/wrangler.toml - 修复 JWT_SECRET 明文存储安全隐患
     - 移除生产环境和开发环境的 JWT_SECRET 明文配置

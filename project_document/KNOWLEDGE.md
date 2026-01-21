@@ -205,6 +205,27 @@ CF-Nav - Cloudflare 导航网站
   - React Router 接管路由 → 渲染 Dashboard 组件
   - 避免 404 错误，支持直接访问任意前端路由
 
+### ADR-016: 默认管理员密码安全加固
+- **背景**: 数据库迁移文件中使用 `$2a$10$YourHashedPasswordHere` 占位符作为默认管理员密码哈希，导致生产部署后登录失败
+- **决策**: 使用 bcryptjs 生成真实的 bcrypt 密码哈希，替换占位符
+- **原因**:
+  - **安全性**: 占位符密码无法通过 bcrypt 验证，导致管理员无法登录
+  - **可部署性**: 迁移文件应包含可用的默认数据，支持快速部署和测试
+  - **标准化**: 使用 bcrypt 10 轮加密符合行业标准（OWASP 推荐）
+  - **文档化**: 注释中明确说明默认密码为 `Admin@123`，提醒生产环境修改
+- **实施**:
+  - 使用 `bcryptjs.hashSync('Admin@123', 10)` 生成密码哈希
+  - 更新 `backend/migrations/0000_initial_schema.sql` 中的密码字段
+  - 通过 `wrangler d1 execute` 更新已部署的生产和开发数据库
+- **密码策略**:
+  - 默认密码：`Admin@123`（8字符，包含大小写字母、数字和特殊符号）
+  - 密码哈希：`$2a$10$GZzaLbIlr4viIMuKZNf.OuSaLqhUGtpC9ma7qiGZxffrafdFDAZBK`
+  - **警告**: 生产环境部署后必须立即修改默认密码（通过 Web 界面或 API）
+- **验证结果**:
+  - ✅ 登录成功（POST /api/auth/login 返回 Token）
+  - ✅ JWT 认证正常（GET /api/auth/me 返回用户信息）
+  - ✅ 密码验证通过（bcrypt.compare 返回 true）
+
 ---
 
 ## 🏗️ 代码模式

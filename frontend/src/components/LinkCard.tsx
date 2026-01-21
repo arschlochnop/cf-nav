@@ -49,6 +49,7 @@ export function LinkCard({
               <img
                 src={link.icon}
                 alt={link.title}
+                referrerPolicy="no-referrer" // 防止向第三方网站泄露 Referer 信息
                 className="w-10 h-10 rounded-lg object-cover"
                 onError={(e) => {
                   // 图标加载失败时显示默认图标

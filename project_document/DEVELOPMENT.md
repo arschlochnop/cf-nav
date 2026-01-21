@@ -20,6 +20,23 @@
   - 描述: 配置本地 Git 仓库并推送到 GitHub
 
 ## 最近完成
+- [2026-01-21] 修复外部图标加载 Referer 泄露安全隐患 🔒
+  - 问题背景
+    - 用户报告：添加的网站图标引用第三方 URL 时会泄露 Referer 信息
+    - 安全风险：第三方网站可追踪用户访问的导航站地址
+    - 隐私威胁：用户浏览行为可能被外部站点记录
+  - 修复方案
+    - frontend/src/components/LinkCard.tsx:52 - 添加 `referrerPolicy="no-referrer"` 属性
+    - frontend/index.html:8 - 添加全局 `<meta name="referrer" content="no-referrer">` 作为双保险
+    - 防止浏览器在加载外部图标时发送 Referer 请求头
+  - 技术细节
+    - `referrerPolicy="no-referrer"` 确保单个 `<img>` 标签不发送 Referer
+    - `<meta name="referrer">` 全局策略覆盖所有外部资源请求
+    - 双层防护确保即使某个标签漏加属性也能保护隐私
+  - 影响范围
+    - ✅ 链接图标（link.icon）- 已修复
+    - ✅ 分类图标（category.icon）- 无需修复（使用 emoji 文本，非外部 URL）
+
 - [2026-01-21] 修复密码修改功能的 updatedAt 类型错误 🐛
   - 问题诊断
     - 用户报告生产环境报错：`{"success":false,"message":"服务器内部错误","code":"INTERNAL_SERVER_ERROR"}`

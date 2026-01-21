@@ -46,6 +46,13 @@
   - 解决 React Router 直接访问路由 404 问题
 
 ### 修复
+- fix(security): 防止外部图标加载时泄露 Referer 信息
+  - frontend/src/components/LinkCard.tsx - 为 `<img>` 标签添加 `referrerPolicy="no-referrer"` 属性
+  - frontend/index.html - 添加全局 `<meta name="referrer" content="no-referrer">` 标签
+  - 问题根因：引用第三方网站图标时，浏览器默认发送 Referer 请求头，泄露用户访问来源
+  - 安全影响：第三方网站可追踪用户访问的导航站地址，侵犯用户隐私
+  - 修复方案：双层防护（组件级 `referrerPolicy` 属性 + 全局 meta 标签）确保不发送 Referer
+  - 副作用处理：LinkCard 组件已包含 `onError` 处理器，防盗链网站图标加载失败时自动显示默认 SVG 图标
 - fix(auth): 修复密码修改时 updatedAt 类型错误
   - backend/src/routes/auth.ts - 修复 updatedAt 字段传递字符串而非 Date 对象的问题
   - 问题根因：Drizzle ORM 的 integer timestamp 字段期望 Date 对象，会自动调用 .getTime() 转换

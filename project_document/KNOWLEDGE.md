@@ -346,6 +346,46 @@ CF-Nav - Cloudflare 导航网站
     details: process.env.NODE_ENV === 'development' ? err.message : undefined,
     ```
 
+### ADR-020: 外部资源 Referer 隐私保护
+- **背景**: 导航站引用第三方网站图标时，浏览器默认会发送 Referer 请求头，泄露用户访问的导航站地址
+- **决策**: 实施双层 Referer 隐私保护策略（组件级 + 全局级）
+- **原因**:
+  - **隐私保护**: 防止第三方网站追踪用户访问来源，保护用户浏览行为隐私
+  - **安全合规**: 符合 GDPR 和隐私保护最佳实践
+  - **双重保障**: 组件级属性 + 全局 meta 标签确保全面覆盖
+  - **零性能开销**: 浏览器原生支持，无需额外处理逻辑
+- **实施**:
+  - **组件级保护** (`LinkCard.tsx`):
+    ```typescript
+    <img
+      src={link.icon}
+      referrerPolicy="no-referrer"  // ← 关键属性
+      alt={link.title}
+      className="w-10 h-10 rounded-lg object-cover"
+    />
+    ```
+  - **全局级保护** (`index.html`):
+    ```html
+    <meta name="referrer" content="no-referrer" />
+    ```
+- **技术细节**:
+  - **组件级优先**: `referrerPolicy` 属性优先级高于全局 meta 标签
+  - **全局兜底**: meta 标签覆盖所有外部资源请求（图片、脚本、样式）
+  - **浏览器兼容**: 所有现代浏览器支持（Chrome 51+、Firefox 52+、Safari 11.1+）
+- **影响范围**:
+  - ✅ **链接图标**: `link.icon` 字段引用的第三方网站 favicon - **已保护**
+  - ✅ **分类图标**: `category.icon` 使用 emoji 文本而非外部 URL - **无需保护**
+  - ✅ **其他外部资源**: 全局 meta 标签覆盖所有未声明 referrerPolicy 的资源
+- **可能的副作用**:
+  - **防盗链问题**: 部分网站使用 Referer 检查防止盗链，可能导致图标加载失败
+  - **解决方案**: LinkCard 组件已包含 `onError` 处理器，加载失败时自动显示默认 SVG 图标
+  - **实际测试**: 大部分公开 API（如 Google Favicon API、DuckDuckGo Icon API）允许无 Referer 请求
+- **替代方案比较**:
+  1. ~~`referrerPolicy="no-referrer-when-downgrade"`~~: 仍会泄露 HTTPS→HTTPS 的 Referer
+  2. ~~Workers 代理转发~~: 增加延迟和服务器负载，过度设计
+  3. ~~`data:` URL 内联~~: 增加 HTML 体积，不适合动态图标
+  4. **`no-referrer` 策略** ✅: 最简单、最有效、零开销的解决方案
+
 ---
 
 ## 🛠️ 代码模式与最佳实践

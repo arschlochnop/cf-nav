@@ -290,6 +290,62 @@ CF-Nav - Cloudflare 导航网站
   - **全局导航**: 顶部导航栏始终可见，无需寻找入口
   - **自动跳转**: 成功后3秒自动返回管理页面，减少手动操作
 
+### ADR-019: Drizzle ORM Timestamp 字段类型规范
+- **背景**: 密码修改功能在生产环境报错 `value.getTime is not a function`，需要明确 Drizzle ORM timestamp 字段的正确用法
+- **决策**: 所有使用 `integer('field_name', { mode: 'timestamp' })` 定义的字段，在 INSERT/UPDATE 时必须传递 JavaScript **Date 对象**而非字符串
+- **原因**:
+  - **Drizzle 自动转换机制**: `mode: 'timestamp'` 配置告诉 Drizzle 该字段是时间戳
+  - **内部处理流程**: Drizzle 接收 Date 对象后自动调用 `Date.getTime()` 转换为 Unix timestamp（整数）存入 SQLite
+  - **类型检查失败**: 如果传递字符串（如 `new Date().toISOString()` 返回值），Drizzle 会尝试调用字符串的 `.getTime()` 方法，导致运行时错误
+- **错误案例**:
+  ```typescript
+  // ❌ 错误：返回字符串 "2026-01-21T12:34:56.789Z"
+  await db.update(users).set({
+    password: hashedPassword,
+    updatedAt: new Date().toISOString(), // TypeError!
+  });
+  ```
+- **正确用法**:
+  ```typescript
+  // ✅ 正确：直接传递 Date 对象
+  await db.update(users).set({
+    password: hashedPassword,
+    updatedAt: new Date(), // Drizzle 自动调用 .getTime()
+  });
+  ```
+- **Schema 定义示例**:
+  ```typescript
+  export const users = sqliteTable('users', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    username: text('username').notNull(),
+    // ⬇️ mode: 'timestamp' 配置期望 Date 对象
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  });
+  ```
+- **数据库行为**:
+  - **存储**: SQLite 存储为整数（Unix timestamp 秒级）
+  - **读取**: Drizzle 自动将整数转换回 JavaScript Date 对象
+  - **默认值**: `sql\`(unixepoch())\`` 在 INSERT 时自动设置当前时间戳
+  - **UPDATE 行为**: 默认值**不会**在 UPDATE 时自动更新，需手动设置 `updatedAt: new Date()`
+- **代码库一致性检查**:
+  - ✅ `categories.ts` 路由正确使用 `updatedAt: new Date()`
+  - ✅ `links.ts` 路由正确使用 `updatedAt: new Date()`
+  - ❌ `auth.ts` 密码修改接口错误使用 `updatedAt: new Date().toISOString()` → 已修复
+- **调试技巧**:
+  - 生产环境错误信息被隐藏时，临时修改 `error-handler.ts` 启用详细错误：
+    ```typescript
+    details: err.message,  // 临时调试，修复后恢复安全配置
+    ```
+  - 定位错误后立即恢复生产环境安全配置：
+    ```typescript
+    details: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    ```
+
 ---
 
 ## 🛠️ 代码模式与最佳实践

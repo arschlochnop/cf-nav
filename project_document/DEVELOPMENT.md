@@ -20,6 +20,27 @@
   - 描述: 配置本地 Git 仓库并推送到 GitHub
 
 ## 最近完成
+- [2026-01-21] 修复密码修改功能的 updatedAt 类型错误 🐛
+  - 问题诊断
+    - 用户报告生产环境报错：`{"success":false,"message":"服务器内部错误","code":"INTERNAL_SERVER_ERROR"}`
+    - 临时启用详细错误信息调试（修改 error-handler.ts）
+    - 重新部署后获取真实错误：`"value.getTime is not a function"`
+  - 根因分析
+    - Drizzle ORM schema 定义：`updatedAt: integer('updated_at', { mode: 'timestamp' })`
+    - `mode: 'timestamp'` 配置要求传递 JavaScript Date 对象
+    - Drizzle 会自动调用 `Date.getTime()` 转换为 Unix timestamp
+    - 错误代码：`updatedAt: new Date().toISOString()` 返回字符串而非 Date 对象
+    - 字符串没有 `.getTime()` 方法 → 触发运行时错误
+  - 修复方案
+    - backend/src/routes/auth.ts:328 - 删除 `.toISOString()` 调用
+    - 修改为：`updatedAt: new Date()` 直接传递 Date 对象
+    - 恢复 error-handler.ts 的生产环境安全配置
+    - 部署版本：9ca5e86e-d360-47d5-9639-fd931c74a818
+  - 对比验证
+    - ✅ categories.ts、links.ts 路由已正确使用 `updatedAt: new Date()`
+    - ❌ auth.ts 的密码修改接口错误使用了 `.toISOString()`
+    - 修复后保持代码库一致性
+
 - [2026-01-21] 实现用户密码修改功能 🔐
   - 后端 API 实现
     - backend/src/routes/auth.ts - 添加 PUT /auth/password 接口

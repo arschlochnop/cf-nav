@@ -46,6 +46,12 @@
   - 解决 React Router 直接访问路由 404 问题
 
 ### 修复
+- fix(auth): 修复密码修改时 updatedAt 类型错误
+  - backend/src/routes/auth.ts - 修复 updatedAt 字段传递字符串而非 Date 对象的问题
+  - 问题根因：Drizzle ORM 的 integer timestamp 字段期望 Date 对象，会自动调用 .getTime() 转换
+  - 原代码错误：`updatedAt: new Date().toISOString()` 返回字符串，导致 "value.getTime is not a function" 错误
+  - 修复方案：改为 `updatedAt: new Date()` 直接传递 Date 对象
+  - 部署版本：9ca5e86e-d360-47d5-9639-fd931c74a818
 - fix(auth): 修复默认管理员账号密码占位符问题
   - backend/migrations/0000_initial_schema.sql - 将占位符密码哈希替换为真实 bcrypt 哈希
   - 问题根因：迁移文件中使用 `$2a$10$YourHashedPasswordHere` 占位符导致登录失败

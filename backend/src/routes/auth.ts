@@ -325,7 +325,7 @@ auth.put('/password', authMiddleware, zValidator('json', changePasswordSchema), 
       .update(users)
       .set({
         password: hashedPassword,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(), // Drizzle timestamp 字段需要 Date 对象而非字符串
       })
       .where(eq(users.id, user.userId));
 
